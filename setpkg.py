@@ -36,7 +36,7 @@ logger.setLevel(logging.DEBUG)
 #logger.addHandler(fh)
 
 sh = logging.StreamHandler(sys.stderr)
-sh.setLevel(logging.WARNING)
+sh.setLevel(logging.WARN)
 sformatter = logging.Formatter("%(message)s")
 sh.setFormatter(sformatter)
 logger.addHandler(sh)
@@ -486,27 +486,7 @@ class Package(object):
         '''
         self.file = file
         self.name = os.path.splitext(os.path.basename(file))[0]
-
-        if not version:
-            self.explicit_version = False
-            if self.config.has_option('main', 'default-version'):
-                version = self.config.get('main', 'default-version')
-            elif len(self.versions) == 1:
-                version = self.versions[0]
-            else:
-                raise PackageError(self.name, "no 'default-version' specified in package header ([main] section)")
-        else:
-            self.explicit_version = True
-    
-        if version not in self.versions:
-            try:
-                # expand aliases
-                version = self.aliases[version]
-            except KeyError:
-                if not self.explicit_version:
-                    version = '%s (default)' % version
-                raise InvalidPackageVersion(self.name, version, '(valid choices are %s)' % ', '.join(self.versions))
-        self.version = version
+        self._version = version
         self._parent = None
         self._dependencies = []
         self._dependents = []
@@ -519,6 +499,31 @@ class Package(object):
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.file, self.version)
 
+    @property
+    def explicit_version(self):
+        return bool(self._version)
+
+    @propertycache
+    def version(self):
+        version = self._version
+        if not version:
+            if self.config.has_option('main', 'default-version'):
+                version = self.config.get('main', 'default-version')
+            elif len(self.versions) == 1:
+                version = self.versions[0]
+            else:
+                raise PackageError(self.name, "no 'default-version' specified in package header ([main] section)")
+    
+        if version not in self.versions:
+            try:
+                # expand aliases
+                version = self.aliases[version]
+            except KeyError:
+                if not self.explicit_version:
+                    version = '%s (default)' % version
+                raise InvalidPackageVersion(self.name, version, '(valid choices are %s)' % ', '.join(self.versions))
+        return version
+    
     @propertycache
     def config(self):
         '''
@@ -550,9 +555,7 @@ class Package(object):
         return valid
                 
     @propertycache
-    def aliases(self):
-
-                    
+    def aliases(self):   
         if self.config.has_section('aliases'):
             aliases = dict([(k,v) for k,v in self.config.items('aliases')])
 
@@ -646,7 +649,7 @@ class Session(shelve.DbfilenameShelf):
         return self
 
     def __exit__(self, type, value, traceback):
-        logger.info('session closed')
+        logger.debug('session closed')
         self.close()
 
     def _status(self, action, package):
@@ -678,25 +681,31 @@ class Session(shelve.DbfilenameShelf):
             g.update(setpkgutil.__dict__)
         except ImportError:
             pass
-        logger.info('%s: execfile %r' % (package.fullname, package.file))
+        #logger.debug('%s: execfile %r' % (package.fullname, package.file))
         try:
+            setattr(g['env'], 'SETPKG_VERSION_%s' % package.name, package.version)
             execfile(package.file, g)
         except Exception, err:
             # TODO: add line and context info for last frame
             raise PackageExecutionError(package.name, str(err))
-        logger.info('%s: execfile complete' % package.fullname)
-           
+        #logger.debug('%s: execfile complete' % package.fullname)
+    
+    def _get_versions(self):
+        return self.get('__versions__', {})
+
+    def _set_versions(self):
+        self['__versions__'] = versions
+  
     def add_package(self, name, parent=None, force=False):
         package = get_package(name)
         shortname = package.name
         
-        versions = self.get('__versions__', {})
         if force:
             self.remove_package(shortname)
         # check if we've already been set:
         elif self.has_key(shortname):
             if not package.explicit_version \
-                or versions.get(shortname, None) == package.version:
+                or os.environ['SETPKG_VERSION_%s' % shortname] == package.version:
                 # a package of this type is already active and 
                 # A) the version requested is the same OR
                 # B) a specific version was not requested
@@ -714,10 +723,7 @@ class Session(shelve.DbfilenameShelf):
         self._exec_package(package)
 
         # versions may have changed
-        versions = self.get('__versions__', {})
         self[package.name] = package
-        versions[package.name] = package.version
-        self['__versions__'] = versions
         #pprint.pprint(package.environ)
         return package
 
@@ -736,9 +742,7 @@ class Session(shelve.DbfilenameShelf):
         self._status('removing', package.fullname)
         del self[shortname]
         # clear package --> version cache
-        versions = self['__versions__']
-        versions.pop(shortname)
-        self['__versions__'] = versions
+        os.environ.pop('SETPKG_VERSION_%s' % shortname)
         self._removed.append(package)
         #pprint.pprint(package.environ)
 
@@ -778,6 +782,7 @@ def open_session(protocol=None, writeback=False, pid=None):
                 # make a unique copy for us
                 old_filename = filename
                 filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
+                logger.debug('copying new cache: %s' % filename)
                 shutil.copy(old_filename, filename)
                 # remove so it can be added properly on sync()
                 del os.environ['SETPKG_SESSION']
@@ -850,7 +855,7 @@ def cli():
     
     def doit(func, args):
         shell = get_shell(args.shell[0])
-        logger.debug('setpkg start %s' % (args.packages,))
+        #logger.debug('setpkg start %s' % (args.packages,))
         try:
             changed = func()
         except PackageError, err:
@@ -861,8 +866,7 @@ def cli():
             logger.error(traceback.format_exc())
             traceback.print_exc(file=sys.stderr)
             sys.exit(0)
-        logger.debug('setpkg done %s' % (args.packages,))
-        logger.debug('changed variables: %s' % (sorted(changed),))
+        #logger.debug('changed variables: %s' % (sorted(changed),))
         for var in changed:
             if var in os.environ:
                 cmd = shell.setenv(var, os.environ[var])
@@ -870,7 +874,7 @@ def cli():
             else:
                 cmd = shell.unsetenv(var)
             print cmd
-            logger.debug(cmd)
+            #logger.debug(cmd)
 
     def set_packages(args):
         def f():

@@ -29,4 +29,3 @@ env.HGDIR = repodir + '/python/packages/compiled/$PYTHON_VER/$OS_TYPE-$ARCH/merc
 env.PATH += '$HGDIR'
 env.PYTHONPATH += '$HGDIR'
 
-setpkg('djv')
