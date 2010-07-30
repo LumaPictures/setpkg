@@ -1,0 +1,32 @@
+'''
+[main]
+versions = 1.5.1, 1.4, 1.3
+version-regex = (\d+)\.(\d+)\.(\d+)
+default-version = 1.5.1
+
+[versions]
+1.5.1 =
+1.4 =
+1.3 =
+'''
+
+repodir, VERSION = repodir(env, 'mercurial', VERSION)
+
+env.HG_VERSION_MAJOR = VERSION_PARTS[0]
+env.HG_VERSION_MINOR = VERSION_PARTS[1]
+env.HG_VERSION_REVISION = VERSION_PARTS[2]
+env.HG_VERSION = VERSION
+
+# Final path needs to be ordered like:
+#     GLOBAL_HGRC:USER_HGRC
+# Since setpkg pre-pends successive entries, we need to specify
+# in reverse order...
+env.LUMA_HGRCPATH += repodir + '/csh/hgrc'
+env.AUTOPILOTPATH += repodir + '/csh/hgrc'
+env.HGRCPATH += '~/.hgrc'
+env.HGRCPATH += '$LUMA_HGRCPATH/luma.rc'
+env.HGDIR = repodir + '/python/packages/compiled/$PYTHON_VER/$OS_TYPE-$ARCH/mercurial-$HG_VERSION'
+env.PATH += '$HGDIR'
+env.PYTHONPATH += '$HGDIR'
+
+setpkg('djv')

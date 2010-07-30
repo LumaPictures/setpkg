@@ -1,0 +1,22 @@
+'''
+
+[versions]
+1.0 =
+'''
+
+env.LUMA_ROOT += '/Volumes/luma'
+env.LUMA_SOFT += '$LUMA_ROOT/_globalSoft'
+env.PATH += '$LUMA_SOFT/csh'
+env.PATH += '$LUMA_SOFT/csh/gnome'
+env.PATH += '$LUMA_SOFT/perl'
+env.PATH += '$HOME/bin'
+#env PATH /usr/local/lumaGit-1.6.2/bin
+env.PATH += '/usr/local/mysql/bin'
+env.PATH += '/usr/local/bin'
+env.USER_DEV += '$LUMA_SOFT/dev/$USER'
+env.LD_LIBRARY_PATH += '$LUMA_SOFT/lib/$OS_ARCH'
+env.LUMA_LD_LIBRARY_PATH += '$LUMA_SOFT/lib/$OS_ARCH'
+if env.OS_TYPE == 'Linux':
+    env.PATH += '$LUMA_SOFT/linux/bin'
+
+setpkg('lumaApps')

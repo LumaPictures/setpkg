@@ -1,0 +1,63 @@
+'''
+[main]
+system-aliases = true
+binary-path = $NUKE_APP/Nuke$NUKE_VERSION_MAJOR.$NUKE_VERSION_MINOR
+version-regex = (\d+)\.(\d+)v(\d+)
+default-version = 6.0
+
+[aliases]
+6.0 = 6.0v6
+5.2 = 5.2v3
+
+[versions]
+6.0v6 =
+6.0v3 =
+6.0v2 =
+6.0v1 =
+5.2v3 =
+5.2v1 =
+5.1v6 =
+5.1v4 =
+5.1v3 =
+5.1v2 =
+5.1v1 =
+'''
+
+import re
+pkgpath, VERSION = packagedir(env, 'nuke', VERSION)
+
+env.NUKE_VER = VERSION
+env.NUKE_VERSION_MAJOR = VERSION_PARTS[0]
+env.NUKE_VERSION_MINOR = VERSION_PARTS[1]
+env.NUKE_VERSION_REVISION = VERSION_PARTS[2]
+
+if env.OS_TYPE == 'Linux':
+    env.NUKE_APP = '/usr/local/Nuke$NUKE_VER'
+else:
+    env.NUKE_APP = '/Applications/Nuke${NUKE_VER}/Nuke${NUKE_VER}.app'
+env.PATH += '$NUKE_APP'
+env.PATH += pkgpath + '/bin'
+env.NUKE_PATH += pkgpath + '/python'
+
+# NUKE_GIZMO_PATH and NUKE_PYTHON_PATH have no meaning to nuke, but is separated here so 
+#that we can parse through the gizmos and create a menu
+env.NUKE_GIZMO_PATH = pkgpath + '/gizmos'
+env.NUKE_PYTHON_PATH += pkgpath + '/python'
+env.NUKE_PATH += pkgpath + '/plugins/$NUKE_VERSION_MAJOR.$NUKE_VERSION_MINOR/$OS_TYPE-$ARCH'
+env.NUKE_PATH += '$NUKE_PYTHON_PATH'
+env.NUKE_PATH += '$NUKE_GIZMO_PATH'
+env.NUKE_PATH += '$LUMA_SOFT/nuke/icons'
+env.PYTHONPATH += '$NUKE_PYTHON_PATH'
+env.OFX_PLUGIN_PATH += '$LUMA_SOFT/nuke/ofx_plugins/$OS_TYPE-$ARCH'
+
+# nuke-5.2v3.dev_OSX and nuke-5.2v1.dev_OSX had NDK_PATH defined, but
+# nothing else did... presumably if it was needed, later versions
+# would have included it... so nixing for now
+#env NDK_PATH $NUKE_APP/Contents/MacOS
+
+setpkg('djv')
+
+pythonver = {'5' : '2.5',
+             '6' : '2.5'}[VERSION_PARTS[0]]
+             
+setpkg('python-' + pythonver)

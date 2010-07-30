@@ -1,0 +1,6 @@
+'''
+[versions]
+2.0 =
+'''
+#env.PYTHONPATH += '$SH_PATH/setpkg'
+#setpkg('python')

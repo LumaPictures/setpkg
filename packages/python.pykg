@@ -1,0 +1,37 @@
+
+'''
+[main]
+default-version = 2.5
+
+[versions]
+2.5 =
+2.6 =
+'''
+
+pkgpath, VERSION = packagedir(env, 'python', VERSION)
+
+env.PYTHON_VER = VERSION
+
+env.PYTHON_VER_FULL = {'2.5' : '2.5.1',
+                       '2.6' : '2.6.4'}[VERSION]
+
+env.PYTHON_DIR = '/usr/local/python-$PYTHON_VER_FULL'
+
+env.PY_VERSIONED = '$LUMA_SOFT/py_versioned/$PYTHON_VER'
+env.PYTHONPATH += '$HOME/python'
+env.PYTHONPATH += pkgpath + '/packages'
+env.PYTHONPATH += '$LUMA_SOFT/python/packages/compiled/$PYTHON_VER/$OS_TYPE-$ARCH/'
+env.QTDIR = '/usr/local/Trolltech/Qt'
+env.PATH += '$QTDIR/bin'
+env.PATH += pkgpath + '/bin'
+env.PATH += pkgpath + '/packages'
+
+if env.OS_TYPE == 'Linux':
+    env.PATH += '$PYTHON_DIR/bin'
+elif env.OS_TYPE == 'Darwin':
+    env.PATH += '$PYTHON_DIR/Python.framework/Versions/$PYTHON_VER/bin'
+else:
+    env.PATH += '$PYTHON_DIR'
+    env.PATH += '$PYTHON_DIR/Scripts'
+
+setpkg('pyexternal')
