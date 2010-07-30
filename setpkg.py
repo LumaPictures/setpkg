@@ -28,9 +28,9 @@ import logging
 logger = logging.getLogger("setpkg")
 logger.setLevel(logging.DEBUG)
 
-# create file handler which logs even debug messages
+## create file handler which logs even debug messages
 #fh = logging.FileHandler("/var/tmp/setpkg.log")
-#fh.setLevel(logging.INFO)
+#fh.setLevel(logging.DEBUG)
 #fformatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 #fh.setFormatter(fformatter)
 #logger.addHandler(fh)
@@ -363,53 +363,33 @@ def _splitname(package):
     version = None if len(parts) == 1 else parts[1]
     return parts[0], version
 
-def _parse_header(file, style='docstring'):
+def _parse_header(file):
     '''
     all comment lines after the first [setpkg] section are considered the header.
     
     styles: docstring, comments
     '''
     header = []
-    if style == 'comment':
-        section_re = re.compile('\s*#\s*\[main\]')
-        started = False
-        with open(file, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    if started:
-                        break
-                    else:
-                        continue
-                if line.startswith('#'):
-                    if started or section_re.match(line):
-                        header.append(line[2:].strip())
-                        started = True
-                else:
+    started = False
+    with open(file, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if started:
+                if line.endswith("'''") or line.endswith('"""'):
+                    header.append(line[:-3])
                     break
-    elif style == 'docstring':
-        started = False
-        with open(file, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if started:
-                    if line.endswith("'''") or line.endswith('"""'):
-                        header.append(line[:-3])
-                        break
-                    else:
-                        header.append(line)
                 else:
-                    if line.startswith("'''") or line.startswith('"""'):
-                        started = True
-                        header.append(line[3:])
+                    header.append(line)
+            else:
+                if line.startswith("'''") or line.startswith('"""'):
+                    started = True
+                    header.append(line[3:])
 
-                    elif line and not line.startswith('#'):
-                        # only empty or comment lines are allowed before the header docstring.
-                        # this keeps us from parsing an entire package file only
-                        # to discover the header was omitted
-                        break
-    else:
-        raise TypeError('invalid style: %s' % style)
+                elif line and not line.startswith('#'):
+                    # only empty or comment lines are allowed before the header docstring.
+                    # this keeps us from parsing an entire package file only
+                    # to discover the header was omitted
+                    break
     return header
 
 def _pkgpaths():
@@ -471,9 +451,19 @@ def get_package(name):
     shortname, version = _splitname(name)
     return Package(find_package_file(shortname), version)
 
+class FakePackage(object):
+    def __init__(self, name, version):
+        self.name = name,
+        self.version = version
+        self.versions = [self.version]
+        self._environ = Environment()
+    @property
+    def environ(self):
+        return dict(self._environ.__dict__['_environ'])
+
 class Package(object):
     VERSION_RE = re.compile('[a-zA-Z0-9\.\-_]+$')
-    def __init__(self, file, version=None, environ=None):
+    def __init__(self, file, version=None):
         '''
         instantiate a package from a package file.
         
@@ -490,7 +480,7 @@ class Package(object):
         self._parent = None
         self._dependencies = []
         self._dependents = []
-        self._environ = environ if environ else Environment()
+        self._environ = Environment()
 
     def __eq__(self, other):
         # use file instead?
@@ -636,21 +626,63 @@ class Package(object):
 # Session
 #------------------------------------------------
 
-class Session(shelve.DbfilenameShelf):
-    def __init__(self, filename, flag='c', protocol=None, writeback=False):
-        self.filename = filename
+class Session():
+    def __init__(self, pid=None, protocol=None):
         self._added = []
         self._removed = []
         self.out = sys.stderr
-        return shelve.DbfilenameShelf.__init__(self, filename, flag, protocol, writeback)
+        self.pid = pid
+        self.filename = None
 
     def __enter__(self):
-        logger.debug( "new session %s" % self.filename )
+        #logger.debug( "new session %s" % self.filename )
         return self
 
     def __exit__(self, type, value, traceback):
-        logger.debug('session closed')
+        #logger.debug('session closed')
         self.close()
+
+    def _open_shelf(self, protocol=None, writeback=False, pid=None):
+        """
+        """
+        SESSION_PREFIX = 'setpkg_session_'
+        if 'SETPKG_SESSION' in os.environ:
+            filename = os.environ['SETPKG_SESSION']
+            # see if our pid differs from the existing
+            if pid:
+                old_pid = filename.rsplit('_')[-1]
+                if pid != old_pid:
+                    # make a unique copy for us
+                    old_filename = filename
+                    filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
+                    #logger.info('copying new cache: %s' % filename)
+                    shutil.copy(old_filename, filename)
+
+                    pkg = FakePackage('setpkg', version='2.0')
+                    pkg._environ.SETPKG_SESSION.set(filename)
+                    self._added.append(pkg)
+            # read an existing shelf
+            flag = 'w'
+            #logger.info( "opening existing session %s" % filename )
+        else:
+            if pid:
+                filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
+            else:
+                filename = tempfile.mktemp(prefix=SESSION_PREFIX)
+            # create a new shelf
+            flag = 'n' 
+            #logger.info( "opening new session %s" % filename )
+
+            pkg = FakePackage('setpkg', version='2.0')
+            pkg._environ.SETPKG_SESSION.set(filename)
+            self._added.append(pkg)
+            
+        self.filename = filename       
+        return shelve.DbfilenameShelf(filename, flag, protocol, writeback)
+
+    @propertycache
+    def shelf(self):
+        return self._open_shelf(pid=self.pid)
 
     def _status(self, action, package):
         self.out.write(('%s:' % action).ljust(10) + '%s\n' % (package,))
@@ -689,27 +721,23 @@ class Session(shelve.DbfilenameShelf):
             # TODO: add line and context info for last frame
             raise PackageExecutionError(package.name, str(err))
         #logger.debug('%s: execfile complete' % package.fullname)
-    
-    def _get_versions(self):
-        return self.get('__versions__', {})
 
-    def _set_versions(self):
-        self['__versions__'] = versions
   
     def add_package(self, name, parent=None, force=False):
         package = get_package(name)
         shortname = package.name
         
+        current_version = os.environ.get('SETPKG_VERSION_%s' % shortname, None) 
         if force:
             self.remove_package(shortname)
         # check if we've already been set:
-        elif self.has_key(shortname):
+        elif current_version is not None:
             if not package.explicit_version \
-                or os.environ['SETPKG_VERSION_%s' % shortname] == package.version:
+                or current_version == package.version:
                 # a package of this type is already active and 
                 # A) the version requested is the same OR
                 # B) a specific version was not requested
-                self._status('skipping', shortname)
+                #self._status('skipping', shortname)
                 return
             else:
                 self.remove_package(shortname)
@@ -723,7 +751,9 @@ class Session(shelve.DbfilenameShelf):
         self._exec_package(package)
 
         # versions may have changed
-        self[package.name] = package
+        del package.versions
+        del package.config
+        self.shelf[package.name] = package
         #pprint.pprint(package.environ)
         return package
 
@@ -731,7 +761,7 @@ class Session(shelve.DbfilenameShelf):
         shortname, version = _splitname(name)
         if not self.has_key(shortname):
             raise PackageError(shortname, "package is not currently set")
-        package = self[shortname]
+        package = self.shelf[shortname]
         if version:
             if package.version != version:
                 raise InvalidPackageVersion(package, version, 
@@ -740,26 +770,11 @@ class Session(shelve.DbfilenameShelf):
             for value in values:
                 popenv(var, value, expand=False)
         self._status('removing', package.fullname)
-        del self[shortname]
+        del self.shelf[shortname]
         # clear package --> version cache
         os.environ.pop('SETPKG_VERSION_%s' % shortname)
         self._removed.append(package)
         #pprint.pprint(package.environ)
-
-    def sync(self):
-        logger.info('syncing')
-        if 'SETPKG_SESSION' not in os.environ:
-            logger.info('setting SETPKG_SESSION')
-            fd, filename = tempfile.mkstemp(prefix='setpkg_')
-            with os.fdopen(fd, 'w') as f:
-                f.write('"""[versions]\n')
-                f.write('2.0 ="""\n')
-            f.close()
-            pkg = Package(filename, version='2.0')
-            os.remove(filename)
-            pkg._environ.SETPKG_SESSION.set(self.filename)
-            self._added.append(pkg)
-        return shelve.DbfilenameShelf.sync(self)
 
     @property
     def added(self):
@@ -769,36 +784,6 @@ class Session(shelve.DbfilenameShelf):
     def removed(self):
         return self._removed
 
-def open_session(protocol=None, writeback=False, pid=None):
-    """
-    """
-    SESSION_PREFIX = 'setpkg_session_'
-    try:
-        filename = os.environ['SETPKG_SESSION']
-        # see if our pid differs from the existing
-        if pid:
-            old_pid = filename.rsplit('_')[-1]
-            if pid != old_pid:
-                # make a unique copy for us
-                old_filename = filename
-                filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
-                logger.debug('copying new cache: %s' % filename)
-                shutil.copy(old_filename, filename)
-                # remove so it can be added properly on sync()
-                del os.environ['SETPKG_SESSION']
-        # read an existing shelf
-        flag = 'w'
-        logger.info( "opening existing session %s" % filename )  
-    except KeyError:
-        if pid:
-            filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
-        else:
-            filename = tempfile.mktemp(prefix=SESSION_PREFIX)
-        # create a new shelf
-        flag = 'n' 
-        logger.info( "opening new session %s" % filename )
-    return Session(filename, flag, protocol, writeback)
-
 def setpkg(packages, force=False, update_pypath=False, pid=None):
     """
     :param update_pythonpath: set to True if changes to PYTHONPATH should be 
@@ -807,12 +792,10 @@ def setpkg(packages, force=False, update_pypath=False, pid=None):
         loaded again) if already loaded
     """
 
-    session = open_session(pid=pid)
-    try:
-        for name in packages:
-            session.add_package(name, force=force)
-    finally:
-        session.close()
+    session = Session(pid=pid)
+    for name in packages:
+        session.add_package(name, force=force)
+
     return session.added, session.removed
 
 def unsetpkg(packages, update_pypath=False, pid=None):
@@ -822,27 +805,23 @@ def unsetpkg(packages, update_pypath=False, pid=None):
     :param force: set to True if package should be re-run (unloaded, then 
         loaded again) if already loaded
     """
-    session = open_session(pid=pid)
-    try:
-        for name in packages:
-            session.remove_package(name)
-    finally:
-        session.close()
+    session = Session(pid=pid)
+    for name in packages:
+        session.remove_package(name)
+
     return session.removed
 
 def list_active_packages(package=None, pid=None):
-    session = open_session(pid=pid)
+    session = Session(pid=pid)
     versions = session['__versions__']
-    try:
-        if package:
-            if package in versions:
-                print '%s-%s' % (package, versions[package])
-            else:
-                print "package %s is not currently active" % package
+    if package:
+        if package in versions:
+            print '%s-%s' % (package, versions[package])
         else:
-            return ['%s-%s' % (pkg, versions[pkg]) for pkg in sorted(versions.keys())]
-    finally:
-        session.close()
+            print "package %s is not currently active" % package
+    else:
+        return ['%s-%s' % (pkg, versions[pkg]) for pkg in sorted(versions.keys())]
+
 
             
 def cli():
@@ -870,7 +849,6 @@ def cli():
         for var in changed:
             if var in os.environ:
                 cmd = shell.setenv(var, os.environ[var])
-                
             else:
                 cmd = shell.unsetenv(var)
             print cmd
