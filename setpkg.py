@@ -30,7 +30,7 @@ logger.setLevel(logging.DEBUG)
 
 ## create file handler which logs even debug messages
 #fh = logging.FileHandler("/var/tmp/setpkg.log")
-#fh.setLevel(logging.DEBUG)
+#fh.setLevel(logging.INFO)
 #fformatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 #fh.setFormatter(fformatter)
 #logger.addHandler(fh)
@@ -353,7 +353,9 @@ class InvalidPackageVersion(PackageError):
         return '%s: invalid version %s: %s' % (self.package, self.bad_version, self.detail)
             
 class PackageExecutionError(PackageError):
-    pass
+    def __str__(self):
+        return 'error during execution of %s.pykg file: %s' % (self.package, self.detail)
+      
 
 def _shortname(package):
     return package.split('-', 1)[0]
@@ -655,15 +657,21 @@ class Session():
                     # make a unique copy for us
                     old_filename = filename
                     filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
-                    #logger.info('copying new cache: %s' % filename)
-                    shutil.copy(old_filename, filename)
-
+                    logger.info('copying cache from %s to %s' % (old_filename, filename))
+                    # depending on the underlying database type used by shelve, 
+                    # the file may actually be several files
+                    try:
+                        shutil.copy(old_filename, filename)
+                    except:
+                        for suffix in ['.bak', '.dat', '.dir']:
+                            shutil.copy(old_filename + suffix, filename + suffix)
                     pkg = FakePackage('setpkg', version='2.0')
                     pkg._environ.SETPKG_SESSION.set(filename)
                     self._added.append(pkg)
+                    
             # read an existing shelf
             flag = 'w'
-            #logger.info( "opening existing session %s" % filename )
+            logger.info( "opening existing session %s" % filename )
         else:
             if pid:
                 filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
@@ -671,7 +679,7 @@ class Session():
                 filename = tempfile.mktemp(prefix=SESSION_PREFIX)
             # create a new shelf
             flag = 'n' 
-            #logger.info( "opening new session %s" % filename )
+            logger.info( "opening new session %s" % filename )
 
             pkg = FakePackage('setpkg', version='2.0')
             pkg._environ.SETPKG_SESSION.set(filename)
