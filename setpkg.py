@@ -737,7 +737,7 @@ class Session():
                 # a package of this type is already active and 
                 # A) the version requested is the same OR
                 # B) a specific version was not requested
-                #self._status('skipping', shortname)
+                self._status('skipping', shortname)
                 return
             else:
                 self.remove_package(shortname)
@@ -759,7 +759,8 @@ class Session():
 
     def remove_package(self, name):
         shortname, version = _splitname(name)
-        if not self.has_key(shortname):
+        current_version = os.environ.get('SETPKG_VERSION_%s' % shortname, None) 
+        if current_version is None:
             raise PackageError(shortname, "package is not currently set")
         package = self.shelf[shortname]
         if version:
@@ -769,10 +770,10 @@ class Session():
         for var, values in package.environ.iteritems():
             for value in values:
                 popenv(var, value, expand=False)
+                
         self._status('removing', package.fullname)
         del self.shelf[shortname]
         # clear package --> version cache
-        os.environ.pop('SETPKG_VERSION_%s' % shortname)
         self._removed.append(package)
         #pprint.pprint(package.environ)
 
