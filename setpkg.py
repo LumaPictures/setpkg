@@ -158,7 +158,7 @@ def _join(values):
 def _nativepath(path):
     return os.path.join(path.split('/'))
 
-def prependenv(name, value, expand=True, skip_if_exists=False):
+def prependenv(name, value, expand=True, no_dupes=False):
     if expand:
         value = _expand(value, strip_quotes=True)
 
@@ -167,7 +167,7 @@ def prependenv(name, value, expand=True, skip_if_exists=False):
     else:
         current_value = os.environ[name]
         parts = _split(current_value)
-        if skip_if_exists:
+        if no_dupes:
             expanded_parts = [_expand(x) for x in parts]
             if value not in expanded_parts:
                 parts.insert(0, value)
@@ -454,6 +454,9 @@ def get_package(name):
     return Package(find_package_file(shortname), version)
 
 class FakePackage(object):
+    '''
+    A package that does not exist on disk
+    '''
     def __init__(self, name, version):
         self.name = name,
         self.version = version
@@ -464,17 +467,19 @@ class FakePackage(object):
         return dict(self._environ.__dict__['_environ'])
 
 class Package(object):
+    '''
+    Class representing a .pykg package file on disk.
+    '''
     VERSION_RE = re.compile('[a-zA-Z0-9\.\-_]+$')
     def __init__(self, file, version=None):
         '''
         instantiate a package from a package file.
         
-        :param version: if is not provided, the default version is automatically
-            determined:
-            1) the `default-version` configuration variable in the package header
-                is checked
-            2) if default is not set, the first version in `versions` 
-                configuration variable is used
+        :param version: if version is not provided, the default version is 
+            automatically determined from the `default-version` configuration 
+            variable in the package header. If that is not set and the lists of the
+            `versions` configuration variable is exactly one, that value is used,
+            otherwise an error is raised.
         '''
         self.file = file
         self.name = os.path.splitext(os.path.basename(file))[0]
@@ -493,6 +498,10 @@ class Package(object):
 
     @property
     def explicit_version(self):
+        '''
+        True if this package explicitly requested a particular version or
+        False if it accepted the default version.
+        '''
         return bool(self._version)
 
     @propertycache
@@ -531,6 +540,9 @@ class Package(object):
     
     @propertycache
     def versions(self):
+        '''
+        list of versions taken from the `versions` config option in the `main` section
+        '''
         #versions = [v.strip() for v in self.config.get('main', 'versions').split(',')]
         try:
             versions = [k.strip() for k, v in self.config.items('versions')]
@@ -547,7 +559,10 @@ class Package(object):
         return valid
                 
     @propertycache
-    def aliases(self):   
+    def aliases(self):
+        '''
+        A dictionary of {alias : version}. Aliases are recursively expanded.
+        '''
         if self.config.has_section('aliases'):
             aliases = dict([(k,v) for k,v in self.config.items('aliases')])
 
@@ -575,7 +590,20 @@ class Package(object):
         return {}
 
     @propertycache
-    def version_tuple(self):
+    def version_parts(self):
+        '''
+        A tuple of version components determined by `version-regex` configuration
+        variable. If `version-regex` is not set, returns None.
+        
+        For example, for a package with a configuration like the following::
+        
+        [main]
+        versions = 1.5.1, 1.4.2, 1.3.0
+        version-regex = (\d+)\.(\d+)\.(\d+)
+        default-version = 1.5.1
+        
+        the Package.version_parts would contain (1,5,1)
+        '''
         if self.config.has_option('main', 'version-regex'):
             reg = self.config.get('main', 'version-regex')+'$'
             try:
@@ -584,13 +612,13 @@ class Package(object):
                 logger.warn('could not split version using version-regex %r' % reg)
 
     @propertycache
-    def binary(self):
+    def executable(self):
         '''
-        read and expand binary-path configuration variable. if it does not exist,
+        read and expand executable-path configuration variable. if it does not exist,
         simply return the short name of the package
         '''
-        if self.config.has_option('main', 'binary-path'):
-            return self.config.get('main', 'binary-path')
+        if self.config.has_option('main', 'executable-path'):
+            return self.config.get('main', 'executable-path')
         else:
             return self.name
             
@@ -704,9 +732,9 @@ class Session():
         g['VERSION'] = package.version
         g['NAME'] = package.name
         
-        version_tuple = package.version_tuple
-        if version_tuple:
-            g['VERSION_PARTS'] = version_tuple
+        version_parts = package.version_parts
+        if version_parts:
+            g['VERSION_PARTS'] = version_parts
  
         def setpkg(subname):
             self.add_package(subname, parent=package)
@@ -885,9 +913,9 @@ def cli():
             return sorted(changed)
         doit(f, args)
   
-    def get_binary(args):
+    def get_exe(args):
         package = get_package(args.package[0])
-        print package.binary
+        print package.executable
         
     shells = ', '.join(_shells.keys())
     parser = argparse.ArgumentParser(
@@ -939,10 +967,10 @@ def cli():
     list_parser.set_defaults(func=list_packages)
 
     #--- bin -----------
-    bin_parser = subparsers.add_parser('bin', help='get the path to a package binary')
+    bin_parser = subparsers.add_parser('exe', help='get the path to a package executable')
     bin_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
                            help='package to query')
-    bin_parser.set_defaults(func=get_binary)
+    bin_parser.set_defaults(func=get_exe)
     
     args = parser.parse_args()
 
