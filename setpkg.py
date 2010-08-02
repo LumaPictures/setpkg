@@ -360,6 +360,10 @@ class PackageExecutionError(PackageError):
 def _shortname(package):
     return package.split('-', 1)[0]
 
+def _longname(name, version):
+    assert version is not None
+    return '%s-%s' % (name, version)
+    
 def _splitname(package):
     parts = package.split('-', 1)
     version = None if len(parts) == 1 else parts[1]
@@ -638,15 +642,15 @@ class Package(object):
     def dependents(self):
         return self._dependents
 
-    def walk_dependencies(self):
-        for child in self._dependencies:
-            yield child
-            for gchild in child.walk_dependencies():
-                yield gchild
+#    def walk_dependencies(self):
+#        for child in self._dependencies:
+#            yield child
+#            for gchild in child.walk_dependencies():
+#                yield gchild
 
     def depends_on(self, package):
-        self._dependencies.append(package.fullname)
-        package._dependents.append(package.fullname)
+        self._dependencies.append(package)
+        package._dependents.append(self)
      
     @property
     def environ(self):
@@ -800,7 +804,10 @@ class Session():
                 # a package of this type is already active and 
                 # A) the version requested is the same OR
                 # B) a specific version was not requested
-                self._status('skipping', shortname)
+                self._status('skipping', name)
+                if parent and package not in parent.dependencies:
+                    parent.depends_on(package)
+                    self.shelf[package.name] = package
                 return
             else:
                 self.remove_package(shortname)
@@ -813,7 +820,6 @@ class Session():
         
         self._exec_package(package)
 
-        # versions may have changed
         del package.versions
         del package.config
         self.shelf[package.name] = package
@@ -838,11 +844,20 @@ class Session():
         del self.shelf[shortname]
         # clear package --> version cache
         self._removed.append(package)
+
         if recurse:
             for sub in package.dependencies:
-                if isinstance(sub, Package):
-                    sub = sub.fullname
-                self.remove_package(sub, recurse)
+                if sub.dependents == [package]:
+                    # current package is only dependency
+                    if isinstance(sub, Package):
+                        sub = sub.fullname
+                    self.remove_package(sub, recurse)
+                else:
+                    logger.warn('not removing %s because it has other dependents' % sub.fullname)
+        else:
+            for parent in package.dependents:
+                if package.explicit_version:
+                    logger.warn('WARNING: %s package requires removed package %s' % (parent.fullname, package.fullname))
         #pprint.pprint(package.environ)
 
     @property
