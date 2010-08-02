@@ -10,5 +10,5 @@ if isdev(env, 'pyexternal', VERSION):
 	env.PYTHONPATH += repopath + '/python/thirdParty'
 	env.PATH += repopath + '/python/thirdParty/bin'
 
-#setpkg('pymel-x.x')
+setpkg('pymel')
 
