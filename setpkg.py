@@ -645,8 +645,8 @@ class Package(object):
                 yield gchild
 
     def depends_on(self, package):
-        self._dependencies.append(package)
-        package._dependents.append(package)
+        self._dependencies.append(package.fullname)
+        package._dependents.append(package.fullname)
      
     @property
     def environ(self):
@@ -746,7 +746,7 @@ class Session():
     def _exec_package(self, package):
         
         def filter_local(module):
-            return [(k,v) for k,v in module.__dict__ if not k.startswith('_')]
+            return [(k,v) for k,v in module.__dict__.iteritems() if not k.startswith('_')]
         g = {}
         # environment
         g['env'] = package._environ
@@ -820,7 +820,7 @@ class Session():
         #pprint.pprint(package.environ)
         return package
 
-    def remove_package(self, name):
+    def remove_package(self, name, recurse=False):
         shortname, version = _splitname(name)
         current_version = os.environ.get('SETPKG_VERSION_%s' % shortname, None) 
         if current_version is None:
@@ -838,6 +838,11 @@ class Session():
         del self.shelf[shortname]
         # clear package --> version cache
         self._removed.append(package)
+        if recurse:
+            for sub in package.dependencies:
+                if isinstance(sub, Package):
+                    sub = sub.fullname
+                self.remove_package(sub, recurse)
         #pprint.pprint(package.environ)
 
     @property
@@ -862,7 +867,7 @@ def setpkg(packages, force=False, update_pypath=False, pid=None):
 
     return session.added, session.removed
 
-def unsetpkg(packages, update_pypath=False, pid=None):
+def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
     """
     :param update_pythonpath: set to True if changes to PYTHONPATH should be 
         reflected in sys.path
@@ -871,13 +876,13 @@ def unsetpkg(packages, update_pypath=False, pid=None):
     """
     session = Session(pid=pid)
     for name in packages:
-        session.remove_package(name)
+        session.remove_package(name, recurse=recurse)
 
     return session.removed
 
 def list_active_packages(package=None, pid=None):
-    session = Session(pid=pid)
-    versions = session['__versions__']
+    VER_PREFIX = 'SETPKG_VERSION_'
+    versions = dict([(k[len(VER_PREFIX):] ,os.environ[k]) for k in os.environ if k.startswith(VER_PREFIX)])
     if package:
         if package in versions:
             print '%s-%s' % (package, versions[package])
@@ -885,8 +890,6 @@ def list_active_packages(package=None, pid=None):
             print "package %s is not currently active" % package
     else:
         return ['%s-%s' % (pkg, versions[pkg]) for pkg in sorted(versions.keys())]
-
-
             
 def cli():
     import argparse
@@ -933,7 +936,7 @@ def cli():
                 packages = list_active_packages(pid=args.pid)
             else:
                 packages = args.packages
-            removed = unsetpkg(packages, pid=args.pid)
+            removed = unsetpkg(packages, pid=args.pid, recurse=args.recurse)
             changed = set([])
             for package in removed:
                 changed.update(package.environ.keys())
@@ -977,6 +980,9 @@ def cli():
     unset_parser.add_argument('--all', '-a', dest='all', action='store_true',
                        help='unset all currently active packages')
 
+    unset_parser.add_argument('--recurse', '-r', action='store_true',
+                       help='also recursively unset dependencies of this package')
+
     unset_parser.set_defaults(func=unset_packages)
 
     #--- list -----------
@@ -998,6 +1004,12 @@ def cli():
     bin_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
                            help='package to query')
     bin_parser.set_defaults(func=get_exe)
+    
+    # monkeypatch with a helper that prints to stderr so we don't eval it
+    def __call__(self, parser, namespace, values, option_string=None):
+        parser.print_help(sys.stderr)
+        parser.exit()
+    parser._registry_get('action', 'help').__call__ = __call__
     
     args = parser.parse_args()
 
