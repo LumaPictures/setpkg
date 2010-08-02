@@ -88,7 +88,7 @@ class Bash(Shell):
     def unsetenv(self, key):
         return "unset %s;" % ( key, )
     def alias(self, key, value):
-        raise "alias %s='%s';" % ( key, value)
+        return "alias %s='%s';" % ( key, value)
 
 class Tsch(Shell):
     def setenv(self, key, value):
@@ -96,7 +96,7 @@ class Tsch(Shell):
     def unsetenv(self, key):
         return "unsetenv %s;" % ( key, )
     def alias(self, key, value):
-        raise "alias %s '%s';" % ( key, value)
+        return "alias %s '%s';" % ( key, value)
 
 class WinShell(Shell):
     def prefix(self):
@@ -946,7 +946,21 @@ def cli():
     def get_exe(args):
         package = get_package(args.package[0])
         print package.executable
-        
+    
+    def alias(args):
+        package_files = sorted(walk_package_files())
+        shell = get_shell(args.shell[0])
+        for package_file in package_files:
+            try:
+                pkg = Package(package_file)
+                if pkg.config.has_section('system-aliases'):
+                    for alias_suffix, pkg_version in pkg.config.items('system-aliases'):
+                        if not pkg_version:
+                            pkg_version = alias_suffix
+                        print shell.alias(pkg.name + alias_suffix, 'runpkg %s-%s' % (pkg.name, pkg_version))
+            except PackageError, err:
+                pass 
+         
     shells = ', '.join(_shells.keys())
     parser = argparse.ArgumentParser(
         description='Manage environment variables for a software package.')
@@ -1004,6 +1018,11 @@ def cli():
     bin_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
                            help='package to query')
     bin_parser.set_defaults(func=get_exe)
+    
+    #--- aliases -----------
+    alias_parser = subparsers.add_parser('alias', help='print alias commands for the current shell')
+    alias_parser.add_argument('shell', **shell_kwargs)
+    alias_parser.set_defaults(func=alias)
     
     # monkeypatch with a helper that prints to stderr so we don't eval it
     def __call__(self, parser, namespace, values, option_string=None):

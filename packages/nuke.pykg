@@ -1,7 +1,7 @@
 '''
 [main]
-system-aliases = true
-binary-path = $NUKE_APP/Nuke$NUKE_VERSION_MAJOR.$NUKE_VERSION_MINOR
+#executable-path = $NUKE_APP/Nuke$NUKE_VERSION_MAJOR.$NUKE_VERSION_MINOR
+executable-path = Nuke
 version-regex = (\d+)\.(\d+)v(\d+)
 default-version = 6.0
 
@@ -21,6 +21,10 @@ default-version = 6.0
 5.1v3 =
 5.1v2 =
 5.1v1 =
+
+[system-aliases]
+6 = 6.0
+5 = 5.2
 '''
 
 import re
