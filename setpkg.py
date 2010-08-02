@@ -657,6 +657,25 @@ class Package(object):
 #------------------------------------------------
 
 class Session():
+    '''
+    A persistent session that manages the adding and removing of packages.
+    
+    The session contains a python shelf that pickles the Package classes of the
+    active packages.
+    
+    When adding a package, if the requested version of the package has not yet
+    been set, the .pykg file is executed in a special python environment created
+    by the session.
+    
+    the environment includes these special python objects:
+
+        - env: instance of an Environment class
+        - VERSION: a string containing the current version being set
+        - VERSION_PARTS: a tuple of version parts if the version string was
+            successfully parsed by `version-regex`; otherwise, None
+        - contents of the builtin `platform` module (equivalent of `from platform import *`)
+        - contents of `setpkgutil` module, if it exists
+    '''
     def __init__(self, pid=None, protocol=None):
         self._added = []
         self._removed = []
@@ -726,31 +745,39 @@ class Session():
 
     def _exec_package(self, package):
         
+        def filter_local(module):
+            return [(k,v) for k,v in module.__dict__ if not k.startswith('_')]
         g = {}
+        # environment
         g['env'] = package._environ
-        #package.blah
+        
+        # version
         g['VERSION'] = package.version
         g['NAME'] = package.name
         
         version_parts = package.version_parts
-        if version_parts:
-            g['VERSION_PARTS'] = version_parts
+        g['VERSION_PARTS'] = version_parts
  
+        # setpkg command
         def setpkg(subname):
             self.add_package(subname, parent=package)
-
         g['setpkg'] = setpkg
+
+        # platform utilities
+        import platform
+        g.update(filter_local(platform))
         
         try:
             import setpkgutil
             for protected in g.keys():
                 assert protected not in setpkgutil.__dict__, \
                     "setpkgutil contains object with protected name: %s" % protected 
-            g.update(setpkgutil.__dict__)
+            g.update(filter_local(setpkgutil))
         except ImportError:
             pass
         #logger.debug('%s: execfile %r' % (package.fullname, package.file))
         try:
+            # add the current version to the environment tracked by this pacakge
             setattr(g['env'], 'SETPKG_VERSION_%s' % package.name, package.version)
             execfile(package.file, g)
         except Exception, err:
