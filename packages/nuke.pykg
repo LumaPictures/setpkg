@@ -28,7 +28,7 @@ default-version = 6.0
 '''
 
 import re
-pkgpath, VERSION = packagedir(env, 'nuke', VERSION)
+pkgpath, VERSION = packagedir(env, NAME, VERSION)
 
 env.NUKE_VER = VERSION
 env.NUKE_VERSION_MAJOR = VERSION_PARTS[0]

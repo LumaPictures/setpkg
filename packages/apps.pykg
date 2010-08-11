@@ -3,7 +3,7 @@
 1.0 =
 ''' 
 setpkg('python')
-pkgpath, VERSION = packagedir(env, 'apps', VERSION)
+pkgpath, VERSION = packagedir(env, NAME, VERSION)
 
 env.PATH += pkgpath + '/bin'
 env.PYTHONPATH += pkgpath + '/python'

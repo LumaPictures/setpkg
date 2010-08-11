@@ -24,7 +24,7 @@ default-version = 2011
 2008 =
 '''
 
-pkgpath, VERSION = packagedir(env, 'maya', VERSION)
+pkgpath, VERSION = packagedir(env, NAME, VERSION)
 
 env.MAYA_VERSION_NUM = VERSION
 env.MAYA_VERSION = '$MAYA_VERSION_NUM-x64'

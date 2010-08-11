@@ -3,9 +3,9 @@
 1.0 = 
 '''
 
-pkgpath, VERSION = packagedir(env, 'pymel', VERSION)
+repodir, VERSION = repodir(env, NAME, VERSION)
 
-env.PYTHONPATH += pkgpath + '/python/pymel'
-env.PYTHONPATH += pkgpath + '/python/pymel/pymel/util'
-env.PYMEL_CONF = pkgpath + '/python/luma_pymel.conf'
-env.PYMEL_STUBS = pkgpath + '/python/pymel/extras/completion/py'
+env.PYTHONPATH += repodir + '/python/pymel'
+env.PYTHONPATH += repodir + '/python/pymel/pymel/util'
+env.PYMEL_CONF = repodir + '/python/luma_pymel.conf'
+env.PYMEL_STUBS = repodir + '/python/pymel/extras/completion/py'

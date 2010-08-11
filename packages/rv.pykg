@@ -3,7 +3,7 @@
 3.8.6 =
 '''
 
-pkgpath, VERSION = packagedir(env, 'rv', VERSION)
+pkgpath, VERSION = packagedir(env, NAME, VERSION)
 
 env.RV_VER = VERSION
 
