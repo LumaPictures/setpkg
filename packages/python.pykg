@@ -8,7 +8,7 @@ default-version = 2.5
 2.6 =
 '''
 
-pkgpath, VERSION = packagedir(env, 'python', VERSION)
+pkgpath, VERSION = packagedir(env, NAME, VERSION)
 
 env.PYTHON_VER = VERSION
 
