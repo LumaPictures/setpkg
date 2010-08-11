@@ -2,7 +2,10 @@
 [versions]
 1.0 = 
 '''
-env.PYTHONPATH += '$LUMA_SOFT/python/pymel'
-env.PYTHONPATH += '$LUMA_SOFT/python/pymel/pymel/util'
-env.PYMEL_CONF ='$LUMA_SOFT/python/luma_pymel.conf'
-env.PYMEL_STUBS ='$LUMA_SOFT/python/pymel/extras/completion/py'
+
+pkgpath, VERSION = packagedir(env, 'pymel', VERSION)
+
+env.PYTHONPATH += pkgpath + '/python/pymel'
+env.PYTHONPATH += pkgpath + '/python/pymel/pymel/util'
+env.PYMEL_CONF = pkgpath + '/python/luma_pymel.conf'
+env.PYMEL_STUBS = pkgpath + '/python/pymel/extras/completion/py'
