@@ -19,4 +19,4 @@ env.LUMA_LD_LIBRARY_PATH += '$LUMA_SOFT/lib/$OS_ARCH'
 if env.OS_TYPE == 'Linux':
     env.PATH += '$LUMA_SOFT/linux/bin'
 
-setpkg('lumaApps')
+setpkg('apps')
