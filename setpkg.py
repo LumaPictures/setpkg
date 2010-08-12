@@ -824,15 +824,14 @@ class Session():
                 self._status('skipping', name)
                 if parent and package not in parent.dependencies:
                     parent.depends_on(package)
-#                    if package.name not in self.shelf:
-#                        # We need to figure out in which situations this happens...
-#                        # put in an obnoxious warning until we do
-#                        logger.debug("=" * 60)
-#                        logger.debug("Package %s not in shelf, but has version %s..." % (name, current_version))
-#                        logger.debug("Parent: %s" % parent)
-#                        logger.debug("=" * 60)
-#                        self.shelf[shortname] = package
-                    self.shelf[shortname] = package
+                    if package.name not in self.shelf:
+                        # We need to figure out in which situations this happens...
+                        # put in an obnoxious warning until we do
+                        logger.debug("=" * 60)
+                        logger.debug("Package %s not in shelf, but has version %s..." % (name, current_version))
+                        logger.debug("Parent: %s" % parent)
+                        logger.debug("=" * 60)
+                        self.shelf[shortname] = package
                 return
             else:
                 self.remove_package(shortname)
