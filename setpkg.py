@@ -277,7 +277,7 @@ class EnvironmentVariable(object):
 
     def __init__(self, name, environ):
         self._name = name
-        self._envrion = environ
+        self._environ = environ
 
     def __str__(self):
         return '%s = %s' % (self._name, self.value())
@@ -294,7 +294,7 @@ class EnvironmentVariable(object):
             value = value.value()
         expanded_value = prependenv(self._name, value)
         # track changes
-        self._envrion[self._name].insert(0, expanded_value)
+        self._environ[self._name].insert(0, expanded_value)
         
         # update_pypath
         if self.name == 'PYTHONPATH':
@@ -306,7 +306,7 @@ class EnvironmentVariable(object):
             value = value.value()
         expanded_value = setenv(self._name, value)
         # track changes
-        self._envrion[self._name] = [expanded_value]
+        self._environ[self._name] = [expanded_value]
         return expanded_value
 
     def __add__(self, value):
@@ -811,7 +811,7 @@ class Session():
         package = get_package(name)
         shortname = package.name
         
-        current_version = get_version(shortname) 
+        current_version = get_version(shortname)
         if force:
             self.remove_package(shortname)
         # check if we've already been set:
@@ -824,7 +824,15 @@ class Session():
                 self._status('skipping', name)
                 if parent and package not in parent.dependencies:
                     parent.depends_on(package)
-                    self.shelf[package.name] = package
+#                    if package.name not in self.shelf:
+#                        # We need to figure out in which situations this happens...
+#                        # put in an obnoxious warning until we do
+#                        logger.debug("=" * 60)
+#                        logger.debug("Package %s not in shelf, but has version %s..." % (name, current_version))
+#                        logger.debug("Parent: %s" % parent)
+#                        logger.debug("=" * 60)
+#                        self.shelf[shortname] = package
+                    self.shelf[shortname] = package
                 return
             else:
                 self.remove_package(shortname)
