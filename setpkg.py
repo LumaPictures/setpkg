@@ -21,8 +21,9 @@ except:
     except ImportError:
         from StringIO import StringIO
 
-DEBUG = False
 ROLLBACK_RE = re.compile('(,|\()([a-zA-Z][a-zA-Z0-9_]*):')
+VER_PREFIX = 'SETPKG_VERSION_'
+LOG_LVL_VAR = 'SETPKG_LOG_LEVEL'
 
 import logging
 logger = logging.getLogger("setpkg")
@@ -36,7 +37,10 @@ logger.setLevel(logging.DEBUG)
 #logger.addHandler(fh)
 
 sh = logging.StreamHandler(sys.stderr)
-sh.setLevel(logging.WARN)
+if LOG_LVL_VAR in os.environ:
+    sh.setLevel(getattr(logging, os.environ[LOG_LVL_VAR]))
+else:
+    sh.setLevel(logging.WARN)
 sformatter = logging.Formatter("%(message)s")
 sh.setFormatter(sformatter)
 logger.addHandler(sh)
@@ -457,6 +461,14 @@ def get_package(name):
     shortname, version = _splitname(name)
     return Package(find_package_file(shortname), version)
 
+def get_version(name):
+    '''
+    get the currently set version for the given pkg, or None if it is not set 
+
+    :param name: a versioned or unversioned package name
+    '''
+    return os.environ.get(VER_PREFIX + _shortname(name), None)
+
 class FakePackage(object):
     '''
     A package that does not exist on disk
@@ -675,8 +687,11 @@ class Session():
 
         - env: instance of an Environment class
         - VERSION: a string containing the current version being set
+        - NAME: a string containing the package name
         - VERSION_PARTS: a tuple of version parts if the version string was
             successfully parsed by `version-regex`; otherwise, None
+        - LOGGER: the logger object for this module
+        - setpkg: function for setting a another package within this one
         - contents of the builtin `platform` module (equivalent of `from platform import *`)
         - contents of `setpkgutil` module, if it exists
     '''
@@ -761,6 +776,8 @@ class Session():
         
         version_parts = package.version_parts
         g['VERSION_PARTS'] = version_parts
+        
+        g['LOGGER'] = logger
  
         # setpkg command
         def setpkg(subname):
@@ -782,7 +799,7 @@ class Session():
         #logger.debug('%s: execfile %r' % (package.fullname, package.file))
         try:
             # add the current version to the environment tracked by this pacakge
-            setattr(g['env'], 'SETPKG_VERSION_%s' % package.name, package.version)
+            setattr(g['env'], VER_PREFIX + str(package.name), package.version)
             execfile(package.file, g)
         except Exception, err:
             # TODO: add line and context info for last frame
@@ -794,7 +811,7 @@ class Session():
         package = get_package(name)
         shortname = package.name
         
-        current_version = os.environ.get('SETPKG_VERSION_%s' % shortname, None) 
+        current_version = get_version(shortname) 
         if force:
             self.remove_package(shortname)
         # check if we've already been set:
@@ -828,7 +845,7 @@ class Session():
 
     def remove_package(self, name, recurse=False):
         shortname, version = _splitname(name)
-        current_version = os.environ.get('SETPKG_VERSION_%s' % shortname, None) 
+        current_version = get_version(shortname) 
         if current_version is None:
             raise PackageError(shortname, "package is not currently set")
         package = self.shelf[shortname]
@@ -839,7 +856,7 @@ class Session():
         for var, values in package.environ.iteritems():
             for value in values:
                 popenv(var, value, expand=False)
-                
+        
         self._status('removing', package.fullname)
         del self.shelf[shortname]
         # clear package --> version cache
@@ -896,7 +913,6 @@ def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
     return session.removed
 
 def list_active_packages(package=None, pid=None):
-    VER_PREFIX = 'SETPKG_VERSION_'
     versions = dict([(k[len(VER_PREFIX):] ,os.environ[k]) for k in os.environ if k.startswith(VER_PREFIX)])
     if package:
         if package in versions:
@@ -916,7 +932,7 @@ def cli():
     
     def doit(func, args):
         shell = get_shell(args.shell[0])
-        #logger.debug('setpkg start %s' % (args.packages,))
+        logger.debug('setpkg start %s' % (args.packages,))
         try:
             changed = func()
         except PackageError, err:
@@ -927,14 +943,14 @@ def cli():
             logger.error(traceback.format_exc())
             traceback.print_exc(file=sys.stderr)
             sys.exit(0)
-        #logger.debug('changed variables: %s' % (sorted(changed),))
+        logger.debug('changed variables: %s' % (sorted(changed),))
         for var in changed:
             if var in os.environ:
                 cmd = shell.setenv(var, os.environ[var])
             else:
                 cmd = shell.unsetenv(var)
             print cmd
-            #logger.debug(cmd)
+            logger.debug(cmd)
 
     def set_packages(args):
         def f():
@@ -1028,7 +1044,7 @@ def cli():
 
     list_parser.set_defaults(func=list_packages)
 
-    #--- bin -----------
+    #--- exe -----------
     bin_parser = subparsers.add_parser('exe', help='get the path to a package executable')
     bin_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
                            help='package to query')
