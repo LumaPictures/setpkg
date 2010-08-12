@@ -1,11 +1,12 @@
+import setpkg as _setpkg
+
 def packagedir(env, pkg, version):
-    if isdev(env, pkg, version):
-        return env.USER_DEV / pkg, stripdev(version)
-    else:
-        return env.LUMA_SOFT / pkg, version
+    repoRoot, version = repodir(env, pkg, version)
+    return repoRoot / pkg, version
 
 def repodir(env, pkg, version):
     if isdev(env, pkg, version):
+        _setpkg.logger.debug("(pkg %s in dev mode)" % pkg)
         return env.USER_DEV, stripdev(version)
     else:
         return env.LUMA_SOFT, version
