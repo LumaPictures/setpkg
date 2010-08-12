@@ -974,9 +974,24 @@ def cli():
             return sorted(changed)
         doit(f, args)
   
-    def get_exe(args):
-        package = get_package(args.package[0])
-        print package.executable
+    def get_info(args):
+        shortname, version = _splitname(args.package[0])
+        print "%s %s:" % (shortname, args.info_type)
+        if args.info_type == 'exe':
+            package = get_package(args.package[0])
+            print package.executable
+            return
+
+        current_version = get_version(shortname)
+        if current_version is None:
+            print "package is not currently set"
+            return
+        
+        session = Session(pid=args.pid)
+        package = session.shelf[shortname]
+        pprint.pprint({'vars': package.environ,
+                       'version': get_version(shortname),
+                       }[args.info_type])
     
     def alias(args):
         package_files = sorted(walk_package_files())
@@ -1044,11 +1059,20 @@ def cli():
 
     list_parser.set_defaults(func=list_packages)
 
-    #--- exe -----------
-    bin_parser = subparsers.add_parser('exe', help='get the path to a package executable')
-    bin_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
-                           help='package to query')
-    bin_parser.set_defaults(func=get_exe)
+    #--- info -----------
+    info_parser = subparsers.add_parser('info', help='get information about a package; if no options are provided, --vars is assumed')
+    info_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
+                             help='package to query')
+    info_parser.add_argument('--vars', '-v', dest='info_type',
+                             action='store_const', const='vars',
+                             help='print what environment variables this package modifies')
+    info_parser.add_argument('--exe', '-e', dest='info_type',
+                             action='store_const', const='exe',
+                             help='get the path to a package executable')
+    info_parser.add_argument('--version', dest='info_type',
+                             action='store_const', const='version',
+                             help='get the current version for a package')
+    info_parser.set_defaults(func=get_info, info_type='vars')
     
     #--- aliases -----------
     alias_parser = subparsers.add_parser('alias', help='print alias commands for the current shell')
