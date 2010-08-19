@@ -26,8 +26,10 @@ default-version = 2011
 
 pkgpath, VERSION = packagedir(env, NAME, VERSION)
 
-env.MAYA_VERSION_NUM = VERSION
-env.MAYA_VERSION = '$MAYA_VERSION_NUM-x64'
+env.MAYA_VERSION_NUM = VERSION_PARTS[0]
+env.MAYA_VERSION_FULL = VERSION
+env.MAYA_VERSION = '$MAYA_VERSION_FULL-x64'
+
 
 if env.OS_TYPE == 'Linux':
 	env.MAYA_LOCATION = '/usr/autodesk/maya$MAYA_VERSION'
@@ -58,7 +60,7 @@ env.MAYA_PLUG_IN_PATH += pkgpath + '/plugins/python'
 env.MAYA_PRESET_PATH += '$LUMA_SOFT/maya/presets'
 env.MAYA_SCRIPT_PATH += pkgpath + '/mel'
 #env.MAYA_SCRIPT_PATH += pkgpath + '/mel/nexus'
-env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk$MAYA_VERSION_NUM/mel/scripts'
+env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts'
 env.MAYA_FBXPRESET_PATH += pkgpath + '/fbxpresets'
 
 setpkg('mray-3.8.1')
