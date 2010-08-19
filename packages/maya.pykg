@@ -19,7 +19,7 @@ default-version = 2011
 2011.hotfix3 = 2011.03
 
 [system-aliases]
-2011 = 
+2011 =
 2009 =
 2008 =
 '''
@@ -61,4 +61,4 @@ env.MAYA_SCRIPT_PATH += pkgpath + '/mel'
 env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk$MAYA_VERSION_NUM/mel/scripts'
 env.MAYA_FBXPRESET_PATH += pkgpath + '/fbxpresets'
 
-#setpkg('mray-3.8.1')
+setpkg('mray-3.8.1')
