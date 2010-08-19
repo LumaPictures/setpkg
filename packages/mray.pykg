@@ -14,7 +14,7 @@ default-version = 3.8.1
 3.7.5 =
 '''
 
-pkgpath, VERSION = packagedir(env, 'mentalRay', VERSION)
+repopath, VERSION = repodir(env, 'mray', VERSION)
 
 env.RAY_VERSION = VERSION
 env.RAY_VERSION_MAJOR = VERSION_PARTS[0]
@@ -22,8 +22,8 @@ env.RAY_VERSION_MINOR = VERSION_PARTS[1]
 env.RAY_VERSION_REVISION = VERSION_PARTS[2]
 
 #env.MI_ROOT = '/usr/local/mi$RAY_VERSION'
-env.MI_RAY_INCPATH += pkgpath + '/mentalRay/published/mi$RAY_VERSION/$OS_ARCH/include'
+env.MI_RAY_INCPATH += repopath + '/mentalRay/published/mi$RAY_VERSION/$OS_ARCH/include'
 env.MI_CUSTOM_SHADER_PATH += '$MI_RAY_INCPATH'
-env.MI_LIBRARY_PATH += pkgpath + '/mentalRay/published/mi$RAY_VERSION/$OS_ARCH/lib'
+env.MI_LIBRARY_PATH += repopath + '/mentalRay/published/mi$RAY_VERSION/$OS_ARCH/lib'
 env.PATH += '/usr/local/mi$RAY_VERSION/bin'
 env.SPM_HOST = 'sv-lichost2'
