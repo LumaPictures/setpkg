@@ -647,6 +647,13 @@ class Package(object):
         return self._parent
 
     @property
+    def parents(self):
+        if self._parent:
+            yield self._parent
+            for parent in self._parent.parents:
+                yield parent
+
+    @property
     def dependencies(self):
         return self._dependencies
 
@@ -758,11 +765,13 @@ class Session():
     def shelf(self):
         return self._open_shelf(pid=self.pid)
 
-    def _status(self, action, package):
-        self.out.write(('%s:' % action).ljust(10) + '%s\n' % (package,))
+    def _status(self, action, package, symbol=' ', depth=0):
+        #prefix = '   ' * depth + '[%s]  ' % symbol
+        prefix = '[%s]  ' % symbol + ('  ' * depth)
+        self.out.write(('%s:' % action).ljust(12) + prefix + '%s\n' % (package,))
         logger.info('%s: %s' % (package, action))
 
-    def _exec_package(self, package):
+    def _exec_package(self, package, depth=0):
         
         def filter_local(module):
             return [(k,v) for k,v in module.__dict__.iteritems() if not k.startswith('_')]
@@ -781,7 +790,7 @@ class Session():
  
         # setpkg command
         def setpkg(subname):
-            self.add_package(subname, parent=package)
+            self.add_package(subname, parent=package, depth=depth+1)
         g['setpkg'] = setpkg
 
         # platform utilities
@@ -807,7 +816,7 @@ class Session():
         #logger.debug('%s: execfile complete' % package.fullname)
 
   
-    def add_package(self, name, parent=None, force=False):
+    def add_package(self, name, parent=None, force=False, depth=0):
         package = get_package(name)
         shortname = package.name
         
@@ -821,7 +830,7 @@ class Session():
                 # a package of this type is already active and 
                 # A) the version requested is the same OR
                 # B) a specific version was not requested
-                self._status('skipping', name)
+                self._status('skipping', name, ' ', depth)
                 if parent and package not in parent.dependencies:
                     parent.depends_on(package)
                     if package.name not in self.shelf:
@@ -834,15 +843,15 @@ class Session():
                         self.shelf[shortname] = package
                 return
             else:
-                self.remove_package(shortname)
+                self.remove_package(shortname, depth=1)
 
         if parent:
             parent.depends_on(package)
         
-        self._status('adding', package.fullname)
+        self._status('adding', package.fullname, '+', depth)
         self._added.append(package)
         
-        self._exec_package(package)
+        self._exec_package(package, depth=depth)
 
         del package.versions
         del package.config
@@ -850,7 +859,7 @@ class Session():
         #pprint.pprint(package.environ)
         return package
 
-    def remove_package(self, name, recurse=False):
+    def remove_package(self, name, recurse=False, depth=0):
         shortname, version = _splitname(name)
         current_version = get_version(shortname) 
         if current_version is None:
@@ -863,8 +872,9 @@ class Session():
         for var, values in package.environ.iteritems():
             for value in values:
                 popenv(var, value, expand=False)
-        
-        self._status('removing', package.fullname)
+
+        #depth = len(list(package.parents))
+        self._status('removing', package.fullname, '-', depth)
         del self.shelf[shortname]
         # clear package --> version cache
         self._removed.append(package)
@@ -875,7 +885,7 @@ class Session():
                     # current package is only dependency
                     if isinstance(sub, Package):
                         sub = sub.fullname
-                    self.remove_package(sub, recurse)
+                    self.remove_package(sub, recurse, depth+1)
                 else:
                     logger.warn('not removing %s because it has other dependents' % sub.fullname)
         else:
@@ -1048,7 +1058,7 @@ def cli():
                        help='unset all currently active packages')
 
     unset_parser.add_argument('--recurse', '-r', action='store_true',
-                       help='also recursively unset dependencies of this package')
+                       help='recursively unset dependencies of this package')
 
     unset_parser.set_defaults(func=unset_packages)
 
