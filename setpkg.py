@@ -1,4 +1,106 @@
 #!/usr/bin/env python
+"""
+An environment variable management system written in python.  The system is
+based around .pykg files: python scripts executed in a special environment and
+containing python ini-style configuration headers.
+
+pykg files
+==========
+
+Typically, a single .pykg file is written for each application to be managed,
+and placed on the SETPKG_PATH. When adding a package using the setpkg module or
+command line tool, if the requested version of the package has not yet already
+been set, the .pykg file is executed. Differences per OS, architecture, application 
+version, etc, are handled by code inside the pykg file. 
+
+Configuration Header
+--------------------
+
+To be valid, a pykg file needs a module-level docstring with, at minimum, a [versions] 
+section listing the valid versions for this application::
+
+    '''  
+    [versions]
+    6.0v2 =
+    6.0v1 =
+    5.2v3 =
+    5.2v1 =
+    5.1v6 =
+    5.1v4 =
+    '''
+
+A [main] section is used to set global options, like the default version::
+
+    [main]
+    executable-path = Nuke
+    version-regex = (\d+)\.(\d+)v(\d+)
+    default-version = 6.0v6
+    
+Version aliases can also be set in the [aliases] section, and are valid to use 
+anywhere a version is expected, including as the default-version::
+
+    '''
+    [main]
+    executable-path = Nuke
+    version-regex = (\d+)\.(\d+)v(\d+)
+    default-version = 6.0
+    
+    [aliases]
+    6.0 = 6.0v6
+    5.2 = 5.2v3
+
+    [versions]
+    6.0v2 =
+    6.0v1 =
+    5.2v3 =
+    5.2v1 =
+    5.1v6 =
+    5.1v4 =
+    '''
+
+Execution Environment
+---------------------
+
+Several variables and functions are added to the globals of pykg script before it
+is executed.
+
+    env : 
+        instance of an Environment class, providing attribute-style access to 
+        environment variables. This should be used to modify the environment
+        and NOT ``os.environ``.
+
+    NAME : 
+        a string containing the package name; considered everything before the 
+        first dash `-` in the package name.
+
+    VERSION : 
+        a string containing the current version being set; considered everything
+        after the first dash `-` in the package name.
+
+    VERSION_PARTS : 
+        a tuple of version parts if the version string was
+        successfully parsed by the `version-regex` config variable, if set; 
+        otherwise, None
+
+    LOGGER : 
+        the logger object for this module. normal print statements can also be
+        used, but the logger provides log levels (error, warn, info, debug) and
+        can also be configured to log to a file.
+        
+    setpkg :
+        function for setting a sub-package dependency.
+
+    platform module :
+        the contents of the builtin `platform` module 
+        (equivalent of `from platform import *`)
+
+    setpkgutil module :
+        contents of `setpkgutil` module, if it exists. this module can be used
+        to easily provide utility functions for use within the pykg file. keep
+        in mind that the setpkgutil module must be on the PYTHONPATH before
+        it can be used. 
+"""
+
 from __future__ import with_statement
 import os
 import sys
@@ -36,7 +138,7 @@ logger.setLevel(logging.DEBUG)
 #fh.setFormatter(fformatter)
 #logger.addHandler(fh)
 
-sh = logging.StreamHandler(sys.stderr)
+sh = logging.StreamHandler()
 if LOG_LVL_VAR in os.environ:
     sh.setLevel(getattr(logging, os.environ[LOG_LVL_VAR]))
 else:
@@ -70,13 +172,10 @@ class propertycache(object):
 # Shell Classes
 #------------------------------------------------
 
-# FIXME: the following line detects bash even when run from tcsh?
-#SHELL = os.path.split(os.environ.get('SHELL', 'tcsh'))[-1]
-
 class Shell(object):
     def prefix(self):
         '''
-        Should return stuff which will be prefixed to the returned command. 
+        Abstract base class representing a system shell.     
         '''
         return ''
     def setenv(self, key, value):
@@ -690,7 +789,7 @@ class Session():
     been set, the .pykg file is executed in a special python environment created
     by the session.
     
-    the environment includes these special python objects:
+    the environment includes these python objects:
 
         - env: instance of an Environment class
         - VERSION: a string containing the current version being set
@@ -698,7 +797,7 @@ class Session():
         - VERSION_PARTS: a tuple of version parts if the version string was
             successfully parsed by `version-regex`; otherwise, None
         - LOGGER: the logger object for this module
-        - setpkg: function for setting a another package within this one
+        - setpkg: function for setting a sub-package
         - contents of the builtin `platform` module (equivalent of `from platform import *`)
         - contents of `setpkgutil` module, if it exists
     '''
@@ -933,19 +1032,22 @@ def list_active_packages(package=None, pid=None):
     versions = dict([(k[len(VER_PREFIX):] ,os.environ[k]) for k in os.environ if k.startswith(VER_PREFIX)])
     if package:
         if package in versions:
-            print '%s-%s' % (package, versions[package])
+            return ['%s-%s' % (package, versions[package])]
         else:
             print "package %s is not currently active" % package
     else:
         return ['%s-%s' % (pkg, versions[pkg]) for pkg in sorted(versions.keys())]
             
 def cli():
+    def result(value):
+        sys.__stdout__.write(value + '\n')
+
     import argparse
     def list_packages(args):
         if args.active:
-            print '\n'.join(list_active_packages(args.packages, args.pid))
+            result('\n'.join(list_active_packages(args.packages, args.pid)))
         else:
-            print '\n'.join(list_package_choices(args.packages, versions=not args.base))
+            result('\n'.join(list_package_choices(args.packages, versions=not args.base)))
     
     def doit(func, args):
         shell = get_shell(args.shell[0])
@@ -966,7 +1068,7 @@ def cli():
                 cmd = shell.setenv(var, os.environ[var])
             else:
                 cmd = shell.unsetenv(var)
-            print cmd
+            result(cmd)
             logger.debug(cmd)
 
     def set_packages(args):
@@ -993,10 +1095,9 @@ def cli():
   
     def get_info(args):
         shortname, version = _splitname(args.package[0])
-        print "%s %s:" % (shortname, args.info_type)
         if args.info_type == 'exe':
             package = get_package(args.package[0])
-            print package.executable
+            result(package.executable)
             return
 
         current_version = get_version(shortname)
@@ -1020,7 +1121,7 @@ def cli():
                     for alias_suffix, pkg_version in pkg.config.items('system-aliases'):
                         if not pkg_version:
                             pkg_version = alias_suffix
-                        print shell.alias(pkg.name + alias_suffix, 'runpkg %s-%s' % (pkg.name, pkg_version))
+                        result(shell.alias(pkg.name + alias_suffix, 'runpkg %s-%s' % (pkg.name, pkg_version)))
             except PackageError, err:
                 pass 
          
@@ -1032,7 +1133,7 @@ def cli():
                        help='the shell from which this is run. (options are %s)' % shells)
     
     parser.add_argument('--pid', metavar='PID', type=str, nargs='?',
-                       help='current process id (usually stored in $$')
+                       help='current process id (usually stored in $$)')
     
     subparsers = parser.add_subparsers(help='actions to perform')
     #--- set -----------
@@ -1110,4 +1211,9 @@ def cli():
 
 
 if __name__ == '__main__':
-    cli()
+    try:
+        # only results can go to stdout, so pipe all print statements to stderr
+        sys.stdout = sys.stderr
+        cli()
+    finally:
+        sys.stdout = sys.__stdout__
