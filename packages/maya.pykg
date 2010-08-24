@@ -40,6 +40,9 @@ elif env.OS_TYPE == 'Darwin':
 	env.MAYA_LOCATION = '/Applications/Autodesk/maya$MAYA_VERSION/Maya.app/Contents'
 	env.XBMLANGPATH += '$LUMA_SOFT/maya/icons'
 	env.WINEDITOR = 'edit'
+else:
+    env.MAYA_LOCATION = 'C:/Autodesk/maya$MAYA_VERSION'
+    env.XBMLANGPATH += '$LUMA_SOFT/maya/icons/%B'
 
 pythonver = {'2009' : '2.5',
 			 '2010' : '2.6',

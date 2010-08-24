@@ -15,9 +15,8 @@ env.PYTHON_VER = VERSION
 env.PYTHON_VER_FULL = {'2.5' : '2.5.1',
                        '2.6' : '2.6.4'}[VERSION]
 
-env.PYTHON_DIR = '/usr/local/python-$PYTHON_VER_FULL'
-
 env.PY_VERSIONED = '$LUMA_SOFT/py_versioned/$PYTHON_VER'
+
 env.PYTHONPATH += '$HOME/python'
 env.PYTHONPATH += pkgpath + '/packages'
 env.PYTHONPATH += '$LUMA_SOFT/python/packages/compiled/$PYTHON_VER/$OS_TYPE-$ARCH/'
@@ -27,10 +26,13 @@ env.PATH += pkgpath + '/bin'
 env.PATH += pkgpath + '/packages'
 
 if env.OS_TYPE == 'Linux':
+    env.PYTHON_DIR = '/usr/local/python-$PYTHON_VER_FULL'
     env.PATH += '$PYTHON_DIR/bin'
 elif env.OS_TYPE == 'Darwin':
+    env.PYTHON_DIR = '/usr/local/python-$PYTHON_VER_FULL'
     env.PATH += '$PYTHON_DIR/Python.framework/Versions/$PYTHON_VER/bin'
 else:
+    env.PYTHON_DIR = 'C:/Python' + str(env.PYTHON_VER_FULL).replace('.', '')
     env.PATH += '$PYTHON_DIR'
     env.PATH += '$PYTHON_DIR/Scripts'
 
