@@ -4,6 +4,15 @@ An environment variable management system written in python.  The system is
 based around .pykg files: python scripts executed in a special environment and
 containing python ini-style configuration headers.
 
+Managing Packages
+=================
+
+When setting a package, it will be skipped if:
+    - a specific version is not requested and a version of the package is already set
+    - the requested version is already set
+
+
+
 pykg files
 ==========
 
@@ -101,6 +110,10 @@ is executed.
         it can be used. 
 """
 
+# TODO:
+# colorized output
+# automaticall reload modules that have been edited
+
 from __future__ import with_statement
 import os
 import sys
@@ -112,6 +125,7 @@ import cPickle as pickle
 import shelve
 import tempfile
 import shutil
+import hashlib
 from collections import defaultdict
 from ConfigParser import RawConfigParser, ConfigParser, NoSectionError
 
@@ -125,6 +139,7 @@ except:
 
 ROLLBACK_RE = re.compile('(,|\()([a-zA-Z][a-zA-Z0-9_]*):')
 VER_PREFIX = 'SETPKG_VERSION_'
+VER_SEP = ':'
 LOG_LVL_VAR = 'SETPKG_LOG_LEVEL'
 
 import logging
@@ -167,6 +182,15 @@ class propertycache(object):
         result = cls.func(self)
         setattr(self, cls.name, result)
         return result
+
+def _hashfile(filename):
+    hasher = hashlib.sha1()
+    infile = open(filename, 'rb')
+    try:
+        hasher.update(infile.read())
+        return hasher.hexdigest()
+    finally:
+        infile.close()
 
 #------------------------------------------------
 # Shell Classes
@@ -560,13 +584,37 @@ def get_package(name):
     shortname, version = _splitname(name)
     return Package(find_package_file(shortname), version)
 
-def get_version(name):
+def _current_data(name):
+    '''
+    return the version and pykg file hash for the given pkg
+    ''' 
+    shortname = _shortname(name)
+    try:
+        data = os.environ[VER_PREFIX + shortname].split(VER_SEP)
+    except KeyError:
+        return (None, None)
+    else:
+        if len(data) == 1:
+            return (data[0], None)
+        elif len(data) == 2:
+            return tuple(data)
+        else:
+            raise PackageError(shortname, 'corrupted version data')
+
+def current_version(name):
     '''
     get the currently set version for the given pkg, or None if it is not set 
 
     :param name: a versioned or unversioned package name
     '''
-    return os.environ.get(VER_PREFIX + _shortname(name), None)
+    return _current_data(name)[0]
+
+def current_versions():
+    '''
+    return a dictionary of shortname to version for all active packages
+    '''
+    return dict([(k[len(VER_PREFIX):], os.environ[k].split(VER_SEP)[0]) \
+                     for k in os.environ if k.startswith(VER_PREFIX)])
 
 class FakePackage(object):
     '''
@@ -585,6 +633,7 @@ class Package(object):
     '''
     Class representing a .pykg package file on disk.
     '''
+    # allowed characters: letters, numbers, period, dash, underscore
     VERSION_RE = re.compile('[a-zA-Z0-9\.\-_]+$')
     def __init__(self, file, version=None):
         '''
@@ -736,7 +785,11 @@ class Package(object):
             return self.config.get('main', 'executable-path')
         else:
             return self.name
-            
+    
+    @propertycache
+    def hash(self):
+        return _hashfile(self.file)
+   
     @property
     def fullname(self):
         return self.name + '-' + self.version
@@ -907,7 +960,7 @@ class Session():
         #logger.debug('%s: execfile %r' % (package.fullname, package.file))
         try:
             # add the current version to the environment tracked by this pacakge
-            setattr(g['env'], VER_PREFIX + str(package.name), package.version)
+            setattr(g['env'], '%s%s' % (VER_PREFIX, package.name), '%s%s%s' % (package.version, VER_SEP, package.hash))
             execfile(package.file, g)
         except Exception, err:
             # TODO: add line and context info for last frame
@@ -919,13 +972,14 @@ class Session():
         package = get_package(name)
         shortname = package.name
         
-        current_version = get_version(shortname)
+        curr_version, hash = _current_data(shortname)
         if force:
-            self.remove_package(shortname)
+            self.remove_package(shortname, depth=depth+1)
         # check if we've already been set:
-        elif current_version is not None:
+        elif curr_version is not None:
             if not package.explicit_version \
-                or current_version == package.version:
+                or (curr_version == package.version \
+                    and hash == package.hash):
                 # a package of this type is already active and 
                 # A) the version requested is the same OR
                 # B) a specific version was not requested
@@ -936,13 +990,13 @@ class Session():
                         # We need to figure out in which situations this happens...
                         # put in an obnoxious warning until we do
                         logger.debug("=" * 60)
-                        logger.debug("Package %s not in shelf, but has version %s..." % (name, current_version))
+                        logger.debug("Package %s not in shelf, but has version %s..." % (name, curr_version))
                         logger.debug("Parent: %s" % parent)
                         logger.debug("=" * 60)
                         self.shelf[shortname] = package
                 return
             else:
-                self.remove_package(shortname, depth=1)
+                self.remove_package(shortname, depth=depth)
 
         if parent:
             parent.depends_on(package)
@@ -960,8 +1014,8 @@ class Session():
 
     def remove_package(self, name, recurse=False, depth=0):
         shortname, version = _splitname(name)
-        current_version = get_version(shortname) 
-        if current_version is None:
+        curr_version = current_version(shortname) 
+        if curr_version is None:
             raise PackageError(shortname, "package is not currently set")
         package = self.shelf[shortname]
         if version:
@@ -1029,7 +1083,7 @@ def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
     return session.removed
 
 def list_active_packages(package=None, pid=None):
-    versions = dict([(k[len(VER_PREFIX):] ,os.environ[k]) for k in os.environ if k.startswith(VER_PREFIX)])
+    versions = current_versions()
     if package:
         if package in versions:
             return ['%s-%s' % (package, versions[package])]
@@ -1073,7 +1127,7 @@ def cli():
 
     def set_packages(args):
         def f():
-            added, removed = setpkg(args.packages, pid=args.pid)
+            added, removed = setpkg(args.packages, force=args.reload, pid=args.pid)
             changed = set([])
             for package in added + removed:
                 changed.update(package.environ.keys())
@@ -1100,15 +1154,15 @@ def cli():
             result(package.executable)
             return
 
-        current_version = get_version(shortname)
-        if current_version is None:
+        curr_version = current_version(shortname)
+        if curr_version is None:
             print "package is not currently set"
             return
         
         session = Session(pid=args.pid)
         package = session.shelf[shortname]
         pprint.pprint({'vars': package.environ,
-                       'version': get_version(shortname),
+                       'version': current_version(shortname),
                        }[args.info_type])
     
     def alias(args):
