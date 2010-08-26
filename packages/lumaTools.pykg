@@ -22,5 +22,7 @@ env.LD_LIBRARY_PATH += '$LUMA_SOFT/lib/$OS_ARCH'
 env.LUMA_LD_LIBRARY_PATH += '$LUMA_SOFT/lib/$OS_ARCH'
 if env.OS_TYPE == 'Linux':
     env.PATH += '$LUMA_SOFT/linux/bin'
+elif env.OS_TYPE == 'Windows':
+    env.HOME = '$USERPROFILE'
 env.PYTHONPATH += '$SH_PATH/setpkg'
 setpkg('apps')

@@ -2,8 +2,6 @@
 
 
 setenv PATH ${PATH}:`dirname $SETPKG_PATH`
-#alias addenv 'eval `$SETPKG_PATH/addenv.py \!*`'
-#alias delenv 'eval `$SETPKG_PATH/delenv.py \!*`'
 alias setpkg 'eval `setpkg.py --pid $$ set $SHELL \!*`' 
 alias unsetpkg 'eval `setpkg.py --pid $$ unset $SHELL \!*`' 
 alias lspkg 'setpkg.py --pid $$ list \!*' 

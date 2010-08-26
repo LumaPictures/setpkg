@@ -1,0 +1,19 @@
+'''
+[versions]
+2010 =
+'''
+
+repodir, VERSION = repodir(env, NAME, VERSION)
+
+# Ver-specific
+
+env.MAX_VERSION_NUM = '2010'
+
+# Ver-generic
+
+setpkg('python-2.6')
+
+env.PATH += repodir + '\max\maxScript\startupScripts'
+env.PYTHONPATH += repodir + '\max\python'
+env.MAXSCRIPT += repodir + '\max\maxScript'
+
