@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 An environment variable management system written in python.  The system is
 based around .pykg files: python scripts executed in a special environment and
@@ -258,12 +257,12 @@ class WinShell(Shell):
         return ('setenv -v %s -delete\n' % key  +
                 'set %s=\n' % key)
 
-_shells = { 'bash' : Bash, 
+shells = { 'bash' : Bash, 
            'tcsh' : Tsch,
            'DOS' : WinShell}
 
 def get_shell(shell_name):
-    return _shells[os.path.basename(shell_name)]()
+    return shells[os.path.basename(shell_name)]()
 
 #------------------------------------------------
 # Environment Classes
@@ -1012,7 +1011,6 @@ class Session():
         del package.versions
         del package.config
         self.shelf[package.name] = package
-        #pprint.pprint(package.environ)
         return package
 
     def remove_package(self, name, recurse=False, depth=0):
@@ -1049,7 +1047,6 @@ class Session():
             for parent in package.dependents:
                 if package.explicit_version:
                     logger.warn('WARNING: %s package requires removed package %s' % (parent.fullname, package.fullname))
-        #pprint.pprint(package.environ)
 
     @property
     def added(self):
@@ -1095,184 +1092,3 @@ def list_active_packages(package=None, pid=None):
             print "package %s is not currently active" % package
     else:
         return ['%s-%s' % (pkg, versions[pkg]) for pkg in sorted(versions.keys())]
-            
-def cli():
-    logger.debug(str(sys.argv))
-
-    def result(value):
-        sys.__stdout__.write(value + '\n')
-
-    import argparse
-    def list_packages(args):
-        if args.active:
-            result('\n'.join(list_active_packages(args.packages, args.pid)))
-        else:
-            result('\n'.join(list_package_choices(args.packages, versions=not args.base)))
-    
-    def doit(func, args):
-        shell = get_shell(args.shell[0])
-        logger.debug('setpkg start %s' % (args.packages,))
-        try:
-            changed = func()
-        except PackageError, err:
-            sys.stderr.write(str(err) + '\n')
-            sys.exit(0)
-        except Exception, err:
-            import traceback
-            logger.error(traceback.format_exc())
-            traceback.print_exc(file=sys.stderr)
-            sys.exit(0)
-        logger.debug('changed variables: %s' % (sorted(changed),))
-        for var in changed:
-            if var in os.environ:
-                cmd = shell.setenv(var, os.environ[var])
-            else:
-                cmd = shell.unsetenv(var)
-            result(cmd)
-            logger.debug(cmd)
-
-    def set_packages(args):
-        def f():
-            added, removed = setpkg(args.packages, force=args.reload, pid=args.pid)
-            changed = set([])
-            for package in added + removed:
-                changed.update(package.environ.keys())
-            return sorted(changed)
-        doit(f, args)
-        
-    def unset_packages(args):
-        def f():
-            if args.all:
-                packages = list_active_packages(pid=args.pid)
-            else:
-                packages = args.packages
-            removed = unsetpkg(packages, pid=args.pid, recurse=args.recurse)
-            changed = set([])
-            for package in removed:
-                changed.update(package.environ.keys())
-            return sorted(changed)
-        doit(f, args)
-  
-    def get_info(args):
-        shortname, version = _splitname(args.package[0])
-        if args.info_type == 'exe':
-            package = get_package(args.package[0])
-            result(package.executable)
-            return
-
-        curr_version = current_version(shortname)
-        if curr_version is None:
-            print "package is not currently set"
-            return
-        
-        session = Session(pid=args.pid)
-        package = session.shelf[shortname]
-        pprint.pprint({'vars': package.environ,
-                       'version': current_version(shortname),
-                       }[args.info_type])
-    
-    def alias(args):
-        package_files = sorted(walk_package_files())
-        shell = get_shell(args.shell[0])
-        for package_file in package_files:
-            try:
-                pkg = Package(package_file)
-                if pkg.config.has_section('system-aliases'):
-                    for alias_suffix, pkg_version in pkg.config.items('system-aliases'):
-                        if not pkg_version:
-                            pkg_version = alias_suffix
-                        result(shell.alias(pkg.name + alias_suffix, 'runpkg %s-%s' % (pkg.name, pkg_version)))
-            except PackageError, err:
-                pass 
-         
-    shells = ', '.join(_shells.keys())
-    parser = argparse.ArgumentParser(
-        description='Manage environment variables for a software package.')
-    
-    shell_kwargs = dict(metavar='SHELL', type=str, nargs=1,
-                       help='the shell from which this is run. (options are %s)' % shells)
-    
-    parser.add_argument('--pid', metavar='PID', type=str, nargs='?',
-                       help='current process id (usually stored in $$)')
-    
-    subparsers = parser.add_subparsers(help='actions to perform')
-    #--- set -----------
-    set_parser = subparsers.add_parser('set', help='add packages')
-    set_parser.add_argument('shell', **shell_kwargs)
-    
-    set_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='+',
-                       help='packages to add or remove')
-    
-    set_parser.add_argument('--reload', dest='reload', action='store_true',
-                       help='set packages even if already set')
-
-    set_parser.set_defaults(func=set_packages)
-    
-    #--- unset -----------
-    unset_parser = subparsers.add_parser('unset', help='remove packages')
-    unset_parser.add_argument('shell', **shell_kwargs)
-    
-    unset_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='*',
-                       help='packages to add or remove')
-
-    unset_parser.add_argument('--all', '-a', dest='all', action='store_true',
-                       help='unset all currently active packages')
-
-    unset_parser.add_argument('--recurse', '-r', action='store_true',
-                       help='recursively unset dependencies of this package')
-
-    unset_parser.set_defaults(func=unset_packages)
-
-    #--- list -----------
-    list_parser = subparsers.add_parser('list', help='list packages')
-    
-    list_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='?',
-                           help='packages to add or remove')  
-
-    list_parser.add_argument('--active', dest='active', action='store_true',
-                       help='list packages that are currently active')
-
-    list_parser.add_argument('--base', '-b', dest='base', action='store_true',
-                       help='list only base packages without version')
-
-    list_parser.set_defaults(func=list_packages)
-
-    #--- info -----------
-    info_parser = subparsers.add_parser('info', help='get information about a package; if no options are provided, --vars is assumed')
-    info_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
-                             help='package to query')
-    info_parser.add_argument('--vars', '-v', dest='info_type',
-                             action='store_const', const='vars',
-                             help='print what environment variables this package modifies')
-    info_parser.add_argument('--exe', '-e', dest='info_type',
-                             action='store_const', const='exe',
-                             help='get the path to a package executable')
-    info_parser.add_argument('--version', dest='info_type',
-                             action='store_const', const='version',
-                             help='get the current version for a package')
-    info_parser.set_defaults(func=get_info, info_type='vars')
-    
-    #--- aliases -----------
-    alias_parser = subparsers.add_parser('alias', help='print alias commands for the current shell')
-    alias_parser.add_argument('shell', **shell_kwargs)
-    alias_parser.set_defaults(func=alias)
-    
-    # monkeypatch with a helper that prints to stderr so we don't eval it
-    def __call__(self, parser, namespace, values, option_string=None):
-        parser.print_help(sys.stderr)
-        parser.exit()
-    parser._registry_get('action', 'help').__call__ = __call__
-    
-    args = parser.parse_args()
-
-    args.func(args)
-
-    logger.info('exiting')
-
-if __name__ == '__main__':
-    try:
-        # only results can go to stdout, so pipe all print statements to stderr
-        sys.stdout = sys.stderr
-        cli()
-    finally:
-        sys.stdout = sys.__stdout__
