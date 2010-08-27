@@ -30,7 +30,7 @@ env.HH = '$H/houdini'
 env.HHC = '$HH/config'
 env.HT = '$H/toolkit'
 env.HSB = '$HH/sbin'
-env.HSITE = '/Volumes/luma/'
+env.HSITE = '$LUMA_ROOT'
 
 env.LD_LIBRARY_PATH += '$HDSO'
 env.LUMA_LD_LIBRARY_PATH += '$HDSO'
