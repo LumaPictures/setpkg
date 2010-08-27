@@ -111,10 +111,12 @@ is executed.
 
 # TODO:
 # colorized output
-# automaticall reload modules that have been edited
+# windows: use getpids.exe to get parent id to allow per-process setpkg'ing like on posix
+# windows: add --global flag to set environment globally (current behavior)
 
 from __future__ import with_statement
 import os
+import posixpath
 import sys
 import pprint
 import re
@@ -191,6 +193,11 @@ def _hashfile(filename):
     finally:
         infile.close()
 
+def _getppid():
+    if hasattr(os, 'getppid'):
+        return str(os.getppid())
+    return 'NULL'
+
 #------------------------------------------------
 # Shell Classes
 #------------------------------------------------
@@ -229,9 +236,8 @@ class WinShell(Shell):
         # Add this directory onto the path to make sure setenv is available
         return 'set PATH=%s;%%PATH%%' % THIS_DIR 
     def setenv(self, key, value):
+        value = value.replace('/', '\\\\')
         # exclamation marks allow delayed expansion
-        value = re.sub('\$(\w+)', r'%\1%', value)
-        value = re.sub('/', '\\\\', value)
         quotedValue = subprocess.list2cmdline([value])
         # Will add environment variables to user environment variables -
         # HKCU\\Environment
@@ -270,7 +276,9 @@ def get_shell(shell_name):
 
 
 def _expand(value, strip_quotes=False):
-    expanded = os.path.normpath(os.path.expanduser(os.path.expandvars(value)))
+    # use posixpath because setpkg expects posix-style paths and variable expansion
+    # (on windows: os.path.expandvars will not expand $FOO-x64)
+    expanded = os.path.normpath(os.path.expanduser(posixpath.expandvars(value)))
     if strip_quotes:
         expanded = expanded.strip('"')
     return expanded
@@ -861,7 +869,7 @@ class Session():
         self._added = []
         self._removed = []
         self.out = sys.stderr
-        self.pid = pid if pid else str(os.getppid())
+        self.pid = pid if pid else _getppid()
         self.filename = None
 
     def __enter__(self):
