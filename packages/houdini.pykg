@@ -1,0 +1,59 @@
+'''
+[main]
+version-regex = (\d+)\.(\d+)\.(\d+)
+default-version = 11.0.442
+
+[versions]
+11.0.442 =
+10.0.595 =
+10.0.554 =
+10.0.528 =
+10.0.465 =
+10.0.295 =
+9.5.350 =
+9.5.241 =
+'''
+
+pkgpath, VERSION = packagedir(env, NAME, VERSION)
+
+env.HOUDINI_MAJOR_RELEASE = VERSION_PARTS[0]
+env.HOUDINI_MINOR_RELEASE = VERSION_PARTS[1]
+env.HOUDINI_BUILD_VERSION = VERSION_PARTS[2]
+env.HOUDINI_VERSION += VERSION
+env.HFS = '/usr/local/houdini-$HOUDINI_VERSION'
+
+env.H = '$HFS'
+env.HB = '$H/bin'
+env.HDSO = '$H/dsolib'
+env.HD = '$H/demo'
+env.HH = '$H/houdini'
+env.HHC = '$HH/config'
+env.HT = '$H/toolkit'
+env.HSB = '$HH/sbin'
+env.HSITE = '/Volumes/luma/'
+
+env.LD_LIBRARY_PATH += '$HDSO'
+env.LUMA_LD_LIBRARY_PATH += '$HDSO'
+#env HOUDINI_BUILD_KERNEL "2.6.22-2-vserver-amd64"
+#env HOUDINI_BUILD_PLATFORM "Debian 4.0"
+#env HOUDINI_BUILD_COMPILER "4.1.2"
+#env HOUDINI_BUILD_LIBC "glibc 2.3.6"
+#env JAVA_HOME /usr
+env.PATH += '$HB'
+env.PATH += '$HSB'
+#env PATH $JAVA_HOME/bin
+env.HOUDINI_OTLSCAN_PATH += pkgpath + '/otls'
+env.HOUDINI_OTLSCAN_PATH += '@/otls'
+env.HOUDINI_SCRIPT_PATH += '@/scripts'
+
+# custom script path must come after @/scripts to override 123.cmd
+# the python directory below scripts is auto-added to sys.path
+env.HOUDINI_SCRIPT_PATH += pkgpath + '/scripts'
+env.PYTHONPATH += pkgpath + '/scripts/python'
+env.HOUDINI_VEX_PATH += pkgpath + '/vex'
+env.HOUDINI_VEX_PATH += '@/vex/^'
+env.HOUDINI_VEX_PATH += '.'
+env.HOUDINI_DSO_PATH += pkgpath + '/dso'
+env.HOUDINI_DSO_PATH += '@/dso'
+env.HOUDINI_DSO_PATH += '@/dso_^'
+env.SESI_LMHOST += 'sv-lic1:1715'

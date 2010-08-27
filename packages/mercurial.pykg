@@ -1,6 +1,5 @@
 '''
 [main]
-versions = 1.5.1, 1.4, 1.3
 version-regex = (\d+)\.(\d+)\.(\d+)
 default-version = 1.5.1
 
