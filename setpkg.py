@@ -139,7 +139,7 @@ except:
 
 ROLLBACK_RE = re.compile('(,|\()([a-zA-Z][a-zA-Z0-9_]*):')
 VER_PREFIX = 'SETPKG_VERSION_'
-VER_SEP = ':'
+VER_SEP = ','
 LOG_LVL_VAR = 'SETPKG_LOG_LEVEL'
 
 import logging
@@ -629,6 +629,10 @@ class FakePackage(object):
     def environ(self):
         return dict(self._environ.__dict__['_environ'])
 
+    @propertycache
+    def hash(self):
+        return '%s-%s' % (self.name, sel.version)
+
 class Package(object):
     '''
     Class representing a .pykg package file on disk.
@@ -854,11 +858,11 @@ class Session():
         - contents of the builtin `platform` module (equivalent of `from platform import *`)
         - contents of `setpkgutil` module, if it exists
     '''
-    def __init__(self, pid=None, protocol=None):
+    def __init__(self, pid=None, protocol=2):
         self._added = []
         self._removed = []
         self.out = sys.stderr
-        self.pid = pid
+        self.pid = pid if pid else str(os.getppid())
         self.filename = None
 
     def __enter__(self):
@@ -876,32 +880,29 @@ class Session():
         if 'SETPKG_SESSION' in os.environ:
             filename = os.environ['SETPKG_SESSION']
             # see if our pid differs from the existing
-            if pid:
-                old_pid = filename.rsplit('_')[-1]
-                if pid != old_pid:
-                    # make a unique copy for us
-                    old_filename = filename
-                    filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
-                    logger.info('copying cache from %s to %s' % (old_filename, filename))
-                    # depending on the underlying database type used by shelve, 
-                    # the file may actually be several files
-                    try:
-                        shutil.copy(old_filename, filename)
-                    except:
-                        for suffix in ['.bak', '.dat', '.dir']:
-                            shutil.copy(old_filename + suffix, filename + suffix)
-                    pkg = FakePackage('setpkg', version='2.0')
-                    pkg._environ.SETPKG_SESSION.set(filename)
-                    self._added.append(pkg)
+            old_pid = filename.rsplit('_')[-1]
+            if pid != old_pid:
+                # make a unique copy for us
+                old_filename = filename
+                filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
+                logger.info('copying cache from %s to %s' % (old_filename, filename))
+                # depending on the underlying database type used by shelve, 
+                # the file may actually be several files
+                try:
+                    shutil.copy(old_filename, filename)
+                except:
+                    for suffix in ['.bak', '.dat', '.dir']:
+                        shutil.copy(old_filename + suffix, filename + suffix)
+                pkg = FakePackage('setpkg', version='2.0')
+                pkg._environ.SETPKG_SESSION.set(filename)
+                self._added.append(pkg)
                     
             # read an existing shelf
             flag = 'w'
             logger.info( "opening existing session %s" % filename )
         else:
-            if pid:
-                filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
-            else:
-                filename = tempfile.mktemp(prefix=SESSION_PREFIX)
+            filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
+
             # create a new shelf
             flag = 'n' 
             logger.info( "opening new session %s" % filename )
@@ -958,13 +959,15 @@ class Session():
         except ImportError:
             pass
         #logger.debug('%s: execfile %r' % (package.fullname, package.file))
-        try:
+#        try:
             # add the current version to the environment tracked by this pacakge
-            setattr(g['env'], '%s%s' % (VER_PREFIX, package.name), '%s%s%s' % (package.version, VER_SEP, package.hash))
-            execfile(package.file, g)
-        except Exception, err:
-            # TODO: add line and context info for last frame
-            raise PackageExecutionError(package.name, str(err))
+        setattr(g['env'], '%s%s' % (VER_PREFIX, package.name), '%s%s%s' % (package.version, VER_SEP, package.hash))
+        execfile(package.file, g)
+#        except Exception, err:
+#            # TODO: add line and context info for last frame
+#            import traceback
+#            traceback.print_exc(file=self.out)
+#            raise PackageExecutionError(package.name, str(err))
         #logger.debug('%s: execfile complete' % package.fullname)
 
   
@@ -1023,6 +1026,7 @@ class Session():
                 raise InvalidPackageVersion(package, version, 
                     "cannot be removed because it is not currently set (active version is %s)" % (package.version,))
         for var, values in package.environ.iteritems():
+
             for value in values:
                 popenv(var, value, expand=False)
 
@@ -1062,7 +1066,7 @@ def setpkg(packages, force=False, update_pypath=False, pid=None):
     :param force: set to True if package should be re-run (unloaded, then 
         loaded again) if already loaded
     """
-
+    logger.debug('setpkg %s' % ([force, update_pypath, pid, sys.executable]))
     session = Session(pid=pid)
     for name in packages:
         session.add_package(name, force=force)
@@ -1093,6 +1097,8 @@ def list_active_packages(package=None, pid=None):
         return ['%s-%s' % (pkg, versions[pkg]) for pkg in sorted(versions.keys())]
             
 def cli():
+    logger.debug(str(sys.argv))
+
     def result(value):
         sys.__stdout__.write(value + '\n')
 
@@ -1262,7 +1268,6 @@ def cli():
     args.func(args)
 
     logger.info('exiting')
-
 
 if __name__ == '__main__':
     try:
