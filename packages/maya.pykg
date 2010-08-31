@@ -67,3 +67,4 @@ env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts'
 env.MAYA_FBXPRESET_PATH += pkgpath + '/fbxpresets'
 
 setpkg('mray-3.8.1')
+setpkg('fume')
