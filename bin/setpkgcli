@@ -90,8 +90,30 @@ def cli():
                             pkg_version = alias_suffix
                         result(shell.alias(pkg.name + alias_suffix, 'runpkg %s-%s' % (pkg.name, pkg_version)))
             except PackageError, err:
-                pass 
-    
+                pass
+
+    def env(args):
+        shell = get_shell(args.shell[0])
+        var = args.variable[0]
+        value = args.value
+        if args.action == 'prepend':
+            prependenv(var, value)
+            cmd = shell.setenv(var, os.environ[var])
+        elif args.action == 'pop':
+            popenv(var, value)
+            val = os.environ[var]
+            if val:
+                cmd = shell.setenv(var, os.environ[var])
+            else:
+                cmd = shell.unsetenv(var)
+        elif args.action == 'set':
+            cmd = shell.setenv(var, value)
+        elif args.action == 'unset':
+            cmd = shell.unsetenv(var)
+        else:
+            raise
+        result(cmd)
+            
     parser = argparse.ArgumentParser(
         description='Manage environment variables for a software package.')
     
@@ -162,7 +184,18 @@ def cli():
     alias_parser = subparsers.add_parser('alias', help='print alias commands for the current shell')
     alias_parser.add_argument('shell', **shell_kwargs)
     alias_parser.set_defaults(func=alias)
-    
+
+    #--- env -----------
+    env_parser = subparsers.add_parser('env', help='directly modify environment variables')
+    env_parser.add_argument('shell', **shell_kwargs)
+    env_parser.add_argument('action', metavar='ACTION', type=str, choices=['prepend', 'pop', 'set', 'unset'],
+                             help='action to perform')
+    env_parser.add_argument('variable', metavar='VAR', type=str, nargs=1,
+                             help='variable to modify')
+    env_parser.add_argument('value', metavar='VALUE', type=str, nargs='?',
+                             help='value to set')
+    env_parser.set_defaults(func=env)
+
     # monkeypatch with a helper that prints to stderr so we don't eval it
     def __call__(self, parser, namespace, values, option_string=None):
         parser.print_help(sys.stderr)

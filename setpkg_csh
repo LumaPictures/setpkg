@@ -1,11 +1,12 @@
 
 
 
-setenv PATH ${PATH}:`dirname $SETPKG_PATH`
+setenv PATH ${PATH}:`dirname $SETPKG_PATH`/bin
 alias setpkg 'eval `setpkgcli --pid $$ set $SHELL \!*`' 
 alias unsetpkg 'eval `setpkgcli --pid $$ unset $SHELL \!*`' 
 alias lspkg 'setpkgcli --pid $$ list \!*' 
 alias runpkg 'setpkg \!*; eval `setpkgcli info --exe \!*`'
+alias addenv 'setpkg \!*; eval `setpkgcli env prepend \!*`'
 
 # setup aliases
 eval `setpkgcli alias $SHELL`
