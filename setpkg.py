@@ -415,6 +415,9 @@ class EnvironmentVariable(object):
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self._name)
 
+    def __nonzero__(self):
+        return self._name in os.environ
+
     @property
     def name(self):
         return self._name
@@ -438,6 +441,15 @@ class EnvironmentVariable(object):
         # track changes
         self._environ[self._name] = [expanded_value]
         return expanded_value
+
+    def setdefault(self, value):
+        '''
+        set value if the variable does not yet exist
+        '''
+        if self:
+            return self.value()
+        else:
+            return self.set(value)
 
     def __add__(self, value):
         '''
