@@ -1,0 +1,11 @@
+'''
+[main]
+version-regex = (\d+)\.(\d+)\.(\d+)\.(\d+)
+
+[versions]
+3.3.0.0 = 
+'''
+
+env.PATH += '/usr/local/solidAngle/arnold-%s/bin' % VERSION
+env.LD_LIBRARY_PATH += '/usr/local/solidAngle/arnold-%s/bin' % VERSION
+env.MAYA_MODULE_PATH += '/usr/local/solidAngle/mtoa/$MAYA_VERSION_NUM'
