@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 import sys
 import os
-try:
-    from setpkg import *
-except ImportError:
-    dir = os.path.dirname(os.path.dirname(sys.argv[0]))
-    sys.path.append(dir)
-    from setpkg import *
+
+dir = os.path.dirname(os.path.dirname(sys.argv[0]))
+sys.path.insert(0, dir)
+from setpkg import *
 
 import pprint
 import argparse
@@ -22,7 +20,7 @@ def cli():
             result('\n'.join(list_active_packages(args.packages, args.pid)))
         else:
             result('\n'.join(list_package_choices(args.packages, versions=not args.base)))
-    
+
     def doit(func, args):
         shell = get_shell(args.shell[0])
         logger.debug('setpkg start %s' % (args.packages,))
@@ -53,7 +51,7 @@ def cli():
                 changed.update(package.environ.keys())
             return sorted(changed)
         doit(f, args)
-        
+
     def unset_packages(args):
         def f():
             if args.all:
@@ -66,7 +64,7 @@ def cli():
                 changed.update(package.environ.keys())
             return sorted(changed)
         doit(f, args)
-  
+
     def get_info(args):
         shortname, version = _splitname(args.package[0])
         if args.info_type == 'exe':
@@ -78,13 +76,13 @@ def cli():
         if curr_version is None:
             print "package is not currently set"
             return
-        
+
         session = Session(pid=args.pid)
         package = session.shelf[shortname]
         pprint.pprint({'vars': package.environ,
                        'version': current_version(shortname),
                        }[args.info_type])
-    
+
     def alias(args):
         package_files = sorted(walk_package_files())
         shell = get_shell(args.shell[0])
@@ -120,33 +118,33 @@ def cli():
         else:
             raise
         result(cmd)
-            
+
     parser = argparse.ArgumentParser(
         description='Manage environment variables for a software package.')
-    
+
     shell_kwargs = dict(metavar='SHELL', type=str, nargs=1,
                        help='the shell from which this is run. (options are %s)' % ', '.join(shells.keys()))
-    
+
     parser.add_argument('--pid', metavar='PID', type=str, nargs='?',
                        help='current process id (usually stored in $$)')
-    
+
     subparsers = parser.add_subparsers(help='actions to perform')
     #--- set -----------
     set_parser = subparsers.add_parser('set', help='add packages')
     set_parser.add_argument('shell', **shell_kwargs)
-    
+
     set_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='+',
                        help='packages to add or remove')
-    
+
     set_parser.add_argument('--reload', dest='reload', action='store_true',
                        help='set packages even if already set')
 
     set_parser.set_defaults(func=set_packages)
-    
+
     #--- unset -----------
     unset_parser = subparsers.add_parser('unset', help='remove packages')
     unset_parser.add_argument('shell', **shell_kwargs)
-    
+
     unset_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='*',
                        help='packages to add or remove')
 
@@ -160,9 +158,9 @@ def cli():
 
     #--- list -----------
     list_parser = subparsers.add_parser('list', help='list packages')
-    
+
     list_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='?',
-                           help='packages to add or remove')  
+                           help='packages to add or remove')
 
     list_parser.add_argument('--active', dest='active', action='store_true',
                        help='list packages that are currently active')
@@ -186,7 +184,7 @@ def cli():
                              action='store_const', const='version',
                              help='get the current version for a package')
     info_parser.set_defaults(func=get_info, info_type='vars')
-    
+
     #--- aliases -----------
     alias_parser = subparsers.add_parser('alias', help='print alias commands for the current shell')
     alias_parser.add_argument('shell', **shell_kwargs)
@@ -208,7 +206,7 @@ def cli():
         parser.print_help(sys.stderr)
         parser.exit()
     parser._registry_get('action', 'help').__call__ = __call__
-    
+
     args = parser.parse_args()
 
     args.func(args)

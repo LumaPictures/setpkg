@@ -18,16 +18,16 @@ pykg files
 Typically, a single .pykg file is written for each application to be managed,
 and placed on the SETPKG_PATH. When adding a package using the setpkg module or
 command line tool, if the requested version of the package has not yet already
-been set, the .pykg file is executed. Differences per OS, architecture, application 
-version, etc, are handled by code inside the pykg file. 
+been set, the .pykg file is executed. Differences per OS, architecture, application
+version, etc, are handled by code inside the pykg file.
 
 Configuration Header
 --------------------
 
-To be valid, a pykg file needs a module-level docstring with, at minimum, a [versions] 
+To be valid, a pykg file needs a module-level docstring with, at minimum, a [versions]
 section listing the valid versions for this application::
 
-    '''  
+    '''
     [versions]
     6.0v2 =
     6.0v1 =
@@ -43,8 +43,8 @@ A [main] section is used to set global options, like the default version::
     executable-path = Nuke
     version-regex = (\d+)\.(\d+)v(\d+)
     default-version = 6.0v6
-    
-Version aliases can also be set in the [aliases] section, and are valid to use 
+
+Version aliases can also be set in the [aliases] section, and are valid to use
 anywhere a version is expected, including as the default-version::
 
     '''
@@ -52,7 +52,7 @@ anywhere a version is expected, including as the default-version::
     executable-path = Nuke
     version-regex = (\d+)\.(\d+)v(\d+)
     default-version = 6.0
-    
+
     [aliases]
     6.0 = 6.0v6
     5.2 = 5.2v3
@@ -72,41 +72,41 @@ Execution Environment
 Several variables and functions are added to the globals of pykg script before it
 is executed.
 
-    env : 
-        instance of an Environment class, providing attribute-style access to 
+    env :
+        instance of an Environment class, providing attribute-style access to
         environment variables. This should be used to modify the environment
         and NOT ``os.environ``.
 
-    NAME : 
-        a string containing the package name; considered everything before the 
+    NAME :
+        a string containing the package name; considered everything before the
         first dash `-` in the package name.
 
-    VERSION : 
+    VERSION :
         a string containing the current version being set; considered everything
         after the first dash `-` in the package name.
 
-    VERSION_PARTS : 
+    VERSION_PARTS :
         a tuple of version parts if the version string was
-        successfully parsed by the `version-regex` config variable, if set; 
+        successfully parsed by the `version-regex` config variable, if set;
         otherwise, None
 
-    LOGGER : 
+    LOGGER :
         the logger object for this module. normal print statements can also be
         used, but the logger provides log levels (error, warn, info, debug) and
         can also be configured to log to a file.
-        
+
     setpkg :
         function for setting a sub-package dependency.
 
     platform module :
-        the contents of the builtin `platform` module 
+        the contents of the builtin `platform` module
         (equivalent of `from platform import *`)
 
     setpkgutil module :
         contents of `setpkgutil` module, if it exists. this module can be used
         to easily provide utility functions for use within the pykg file. keep
         in mind that the setpkgutil module must be on the PYTHONPATH before
-        it can be used. 
+        it can be used.
 """
 
 # TODO:
@@ -165,7 +165,7 @@ logger.addHandler(sh)
 
 class propertycache(object):
     '''Class for creating properties where the value is initially calculated then stored.
-    
+
     Intended for use as a descriptor, ie:
 
     class MyClass(object):
@@ -174,7 +174,7 @@ class propertycache(object):
             return calcValue()
     c = MyClass()
     c.aValue
-    
+
     '''
     def __init__(self, func):
         self.func = func
@@ -205,7 +205,7 @@ def _getppid():
 class Shell(object):
     def prefix(self):
         '''
-        Abstract base class representing a system shell.     
+        Abstract base class representing a system shell.
         '''
         return ''
     def setenv(self, key, value):
@@ -234,7 +234,7 @@ class Tsch(Shell):
 class WinShell(Shell):
     def prefix(self):
         # Add this directory onto the path to make sure setenv is available
-        return 'set PATH=%s;%%PATH%%' % THIS_DIR 
+        return 'set PATH=%s;%%PATH%%' % THIS_DIR
     def setenv(self, key, value):
         value = value.replace('/', '\\\\')
         # exclamation marks allow delayed expansion
@@ -263,7 +263,7 @@ class WinShell(Shell):
         return ('setenv -v %s -delete\n' % key  +
                 'set %s=\n' % key)
 
-shells = { 'bash' : Bash, 
+shells = { 'bash' : Bash,
            'tcsh' : Tsch,
            'DOS' : WinShell}
 
@@ -311,12 +311,12 @@ def prependenv(name, value, expand=True, no_dupes=False):
             parts.insert(0, value)
             new_value = _join(parts)
             os.environ[name] = new_value
-    #print "prepend", name, value    
+    #print "prepend", name, value
     return value
 
 def prependenvs(name, value):
     '''
-    like prependenv, but in addition to setting single values, it also allows 
+    like prependenv, but in addition to setting single values, it also allows
     value to be a separated list of values (foo:bar) or a python list
     '''
     if isinstance(value, (list, tuple)):
@@ -358,13 +358,13 @@ def popenv(name, value, expand=True):
             else:
                 parts.pop(index)
                 os.environ[name] = _join(parts)
-    #print "popenv", name, value    
+    #print "popenv", name, value
     return value
 
 class Environment(object):
     '''
     provides attribute-style access to an environment dictionary.
-    
+
     combined with EnvironmentVariable class, tracks changes to the environment
     '''
 #    def __init__(self, environ=None):
@@ -401,7 +401,7 @@ class Environment(object):
 class EnvironmentVariable(object):
     '''
     class representing an environment variable
-    
+
     combined with Environment class, tracks changes to the environment
     '''
 
@@ -428,7 +428,7 @@ class EnvironmentVariable(object):
         expanded_value = prependenv(self._name, value)
         # track changes
         self._environ[self._name].insert(0, expanded_value)
-        
+
         # update_pypath
         if self.name == 'PYTHONPATH':
             sys.path.insert(0, expanded_value)
@@ -454,7 +454,7 @@ class EnvironmentVariable(object):
     def __add__(self, value):
         '''
         append `value` to this variable's value.
-        
+
         returns a string
         '''
         if isinstance(value, EnvironmentVariable):
@@ -497,11 +497,11 @@ class InvalidPackageVersion(PackageError):
         self.detail = detail
     def __str__(self):
         return '%s: invalid version %s: %s' % (self.package, self.bad_version, self.detail)
-            
+
 class PackageExecutionError(PackageError):
     def __str__(self):
         return 'error during execution of %s.pykg file: %s' % (self.package, self.detail)
-      
+
 
 def _shortname(package):
     return package.split('-', 1)[0]
@@ -509,7 +509,7 @@ def _shortname(package):
 def _longname(name, version):
     assert version is not None
     return '%s-%s' % (name, version)
-    
+
 def _splitname(package):
     parts = package.split('-', 1)
     version = None if len(parts) == 1 else parts[1]
@@ -518,7 +518,7 @@ def _splitname(package):
 def _parse_header(file):
     '''
     all comment lines after the first [setpkg] section are considered the header.
-    
+
     styles: docstring, comments
     '''
     header = []
@@ -552,7 +552,7 @@ def _pkgpaths():
 def find_package_file(name):
     '''
     given an unversioned package name, search SETPKG_PATH for the .pykg file
-    
+
     :param name: a versioned or unversioned package name
     '''
     for path in _pkgpaths():
@@ -570,20 +570,20 @@ def walk_package_files():
 def list_package_choices(package=None, versions=True):
     '''
     list available packages in NAME-VERSION format.
-    
+
     :param package: name of package to list versions for.  if None, lists
         all available packages and versions
-    
+
     '''
     packages = []
     if package:
         package_files = [find_package_file(package)]
     else:
         package_files = sorted(walk_package_files())
-    
+
     if not versions:
         return [ os.path.splitext(os.path.basename(file))[0] for file in package_files]
-    
+
     for package_file in package_files:
         try:
             pkg = Package(package_file)
@@ -591,13 +591,13 @@ def list_package_choices(package=None, versions=True):
                 packages.append('%s-%s' % (pkg.name, version))
         except PackageError, err:
             pass
-            #logger.error(str(err))    
+            #logger.error(str(err))
     return packages
 
 def get_package(name):
     '''
     find a package on SETPKG_PATH and return a Package class.
-    
+
     :param name: a versioned or unversioned package name
     '''
     shortname, version = _splitname(name)
@@ -606,7 +606,7 @@ def get_package(name):
 def _current_data(name):
     '''
     return the version and pykg file hash for the given pkg
-    ''' 
+    '''
     shortname = _shortname(name)
     try:
         data = os.environ[VER_PREFIX + shortname].split(VER_SEP)
@@ -622,7 +622,7 @@ def _current_data(name):
 
 def current_version(name):
     '''
-    get the currently set version for the given pkg, or None if it is not set 
+    get the currently set version for the given pkg, or None if it is not set
 
     :param name: a versioned or unversioned package name
     '''
@@ -661,9 +661,9 @@ class Package(object):
     def __init__(self, file, version=None):
         '''
         instantiate a package from a package file.
-        
-        :param version: if version is not provided, the default version is 
-            automatically determined from the `default-version` configuration 
+
+        :param version: if version is not provided, the default version is
+            automatically determined from the `default-version` configuration
             variable in the package header. If that is not set and the lists of the
             `versions` configuration variable is exactly one, that value is used,
             otherwise an error is raised.
@@ -701,7 +701,7 @@ class Package(object):
                 version = self.versions[0]
             else:
                 raise PackageError(self.name, "no 'default-version' specified in package header ([main] section)")
-    
+
         if version not in self.versions:
             try:
                 # expand aliases
@@ -711,7 +711,7 @@ class Package(object):
                     version = '%s (default)' % version
                 raise InvalidPackageVersion(self.name, version, '(valid choices are %s)' % ', '.join(self.versions))
         return version
-    
+
     @propertycache
     def config(self):
         '''
@@ -724,7 +724,7 @@ class Package(object):
 #        if not config.has_section('main'):
 #            raise PackageError(self.name, 'no [main] section in package header')
         return config
-    
+
     @propertycache
     def versions(self):
         '''
@@ -744,7 +744,7 @@ class Package(object):
         if not valid:
             raise PackageError(self.name, "No valid versions were found")
         return valid
-                
+
     @propertycache
     def aliases(self):
         '''
@@ -781,14 +781,14 @@ class Package(object):
         '''
         A tuple of version components determined by `version-regex` configuration
         variable. If `version-regex` is not set, returns None.
-        
+
         For example, for a package with a configuration like the following::
-        
+
         [main]
         versions = 1.5.1, 1.4.2, 1.3.0
         version-regex = (\d+)\.(\d+)\.(\d+)
         default-version = 1.5.1
-        
+
         the Package.version_parts would contain (1,5,1)
         '''
         if self.config.has_option('main', 'version-regex'):
@@ -808,11 +808,11 @@ class Package(object):
             return self.config.get('main', 'executable-path')
         else:
             return self.name
-    
+
     @propertycache
     def hash(self):
         return _hashfile(self.file)
-   
+
     @property
     def fullname(self):
         return self.name + '-' + self.version
@@ -845,7 +845,7 @@ class Package(object):
     def depends_on(self, package):
         self._dependencies.append(package)
         package._dependents.append(self)
-     
+
     @property
     def environ(self):
         return dict(self._environ.__dict__['_environ'])
@@ -857,14 +857,14 @@ class Package(object):
 class Session():
     '''
     A persistent session that manages the adding and removing of packages.
-    
+
     The session contains a python shelf that pickles the Package classes of the
     active packages.
-    
+
     When adding a package, if the requested version of the package has not yet
     been set, the .pykg file is executed in a special python environment created
     by the session.
-    
+
     the environment includes these python objects:
 
         - env: instance of an Environment class
@@ -905,7 +905,7 @@ class Session():
                 old_filename = filename
                 filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
                 logger.info('copying cache from %s to %s' % (old_filename, filename))
-                # depending on the underlying database type used by shelve, 
+                # depending on the underlying database type used by shelve,
                 # the file may actually be several files
                 try:
                     shutil.copy(old_filename, filename)
@@ -915,7 +915,7 @@ class Session():
                 pkg = FakePackage('setpkg', version='2.0')
                 pkg._environ.SETPKG_SESSION.set(filename)
                 self._added.append(pkg)
-                    
+
             # read an existing shelf
             flag = 'w'
             logger.info( "opening existing session %s" % filename )
@@ -923,14 +923,14 @@ class Session():
             filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
 
             # create a new shelf
-            flag = 'n' 
+            flag = 'n'
             logger.info( "opening new session %s" % filename )
 
             pkg = FakePackage('setpkg', version='2.0')
             pkg._environ.SETPKG_SESSION.set(filename)
             self._added.append(pkg)
-            
-        self.filename = filename       
+
+        self.filename = filename
         return shelve.DbfilenameShelf(filename, flag, protocol, writeback)
 
     @propertycache
@@ -944,22 +944,22 @@ class Session():
         logger.info('%s: %s' % (package, action))
 
     def _exec_package(self, package, depth=0):
-        
+
         def filter_local(module):
             return [(k,v) for k,v in module.__dict__.iteritems() if not k.startswith('_')]
         g = {}
         # environment
         g['env'] = package._environ
-        
+
         # version
         g['VERSION'] = package.version
         g['NAME'] = package.name
-        
+
         version_parts = package.version_parts
         g['VERSION_PARTS'] = version_parts
-        
+
         g['LOGGER'] = logger
- 
+
         # setpkg command
         def setpkg(subname):
             self.add_package(subname, parent=package, depth=depth+1)
@@ -968,12 +968,12 @@ class Session():
         # platform utilities
         import platform
         g.update(filter_local(platform))
-        
+
         try:
             import setpkgutil
             for protected in g.keys():
                 assert protected not in setpkgutil.__dict__, \
-                    "setpkgutil contains object with protected name: %s" % protected 
+                    "setpkgutil contains object with protected name: %s" % protected
             g.update(filter_local(setpkgutil))
         except ImportError:
             pass
@@ -989,20 +989,20 @@ class Session():
 #            raise PackageExecutionError(package.name, str(err))
         #logger.debug('%s: execfile complete' % package.fullname)
 
-  
+
     def add_package(self, name, parent=None, force=False, depth=0):
         package = get_package(name)
         shortname = package.name
-        
+
         curr_version, hash = _current_data(shortname)
         if force:
             self.remove_package(shortname, depth=depth+1)
         # check if we've already been set:
         elif curr_version is not None:
-            if not package.explicit_version \
-                or (curr_version == package.version \
-                    and hash == package.hash):
-                # a package of this type is already active and 
+            if hash != package.hash:
+                self.remove_package(shortname, recurse=True, depth=depth)
+            elif not package.explicit_version or curr_version == package.version:
+                # a package of this type is already active and
                 # A) the version requested is the same OR
                 # B) a specific version was not requested
                 self._status('skipping', name, ' ', depth)
@@ -1022,10 +1022,10 @@ class Session():
 
         if parent:
             parent.depends_on(package)
-        
+
         self._status('adding', package.fullname, '+', depth)
         self._added.append(package)
-        
+
         self._exec_package(package, depth=depth)
 
         del package.versions
@@ -1035,13 +1035,13 @@ class Session():
 
     def remove_package(self, name, recurse=False, depth=0):
         shortname, version = _splitname(name)
-        curr_version = current_version(shortname) 
+        curr_version = current_version(shortname)
         if curr_version is None:
             raise PackageError(shortname, "package is not currently set")
         package = self.shelf[shortname]
         if version:
             if package.version != version:
-                raise InvalidPackageVersion(package, version, 
+                raise InvalidPackageVersion(package, version,
                     "cannot be removed because it is not currently set (active version is %s)" % (package.version,))
         for var, values in package.environ.iteritems():
 
@@ -1078,9 +1078,9 @@ class Session():
 
 def setpkg(packages, force=False, update_pypath=False, pid=None):
     """
-    :param update_pythonpath: set to True if changes to PYTHONPATH should be 
+    :param update_pythonpath: set to True if changes to PYTHONPATH should be
         reflected in sys.path
-    :param force: set to True if package should be re-run (unloaded, then 
+    :param force: set to True if package should be re-run (unloaded, then
         loaded again) if already loaded
     """
     logger.debug('setpkg %s' % ([force, update_pypath, pid, sys.executable]))
@@ -1092,9 +1092,9 @@ def setpkg(packages, force=False, update_pypath=False, pid=None):
 
 def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
     """
-    :param update_pythonpath: set to True if changes to PYTHONPATH should be 
+    :param update_pythonpath: set to True if changes to PYTHONPATH should be
         reflected in sys.path
-    :param force: set to True if package should be re-run (unloaded, then 
+    :param force: set to True if package should be re-run (unloaded, then
         loaded again) if already loaded
     """
     session = Session(pid=pid)
