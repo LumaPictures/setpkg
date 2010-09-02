@@ -417,7 +417,7 @@ class EnvironmentVariable(object):
         return '%s(%r)' % (self.__class__.__name__, self._name)
 
     def __nonzero__(self):
-        return self._name in os.environ and self.value()
+        return bool(self.value())
 
     @property
     def name(self):
