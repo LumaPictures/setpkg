@@ -8,4 +8,6 @@ version-regex = (\d+)\.(\d+)\.(\d+)\.(\d+)
 
 env.PATH += '/usr/local/solidAngle/arnold-%s/bin' % VERSION
 env.LD_LIBRARY_PATH += '/usr/local/solidAngle/arnold-%s/bin' % VERSION
-env.MAYA_MODULE_PATH += '/usr/local/solidAngle/mtoa/$MAYA_VERSION_NUM'
+if env.MAYA_VERSION_NUM:
+    env.MAYA_MODULE_PATH += '/usr/local/solidAngle/mtoa/$MAYA_VERSION_NUM'
+env.PYTHONPATH += '/usr/local/solidAngle/arnold-%s/python' % VERSION
