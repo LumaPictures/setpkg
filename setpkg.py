@@ -111,6 +111,7 @@ is executed.
 
 # TODO:
 # colorized output
+# collect external variables expanded within a package and auto-reload when they change 
 # windows: use getpids.exe to get parent id to allow per-process setpkg'ing like on posix
 # windows: add --global flag to set environment globally (current behavior)
 
@@ -516,11 +517,6 @@ def _splitname(package):
     return parts[0], version
 
 def _parse_header(file):
-    '''
-    all comment lines after the first [setpkg] section are considered the header.
-
-    styles: docstring, comments
-    '''
     header = []
     started = False
     with open(file, 'r') as f:
@@ -1087,6 +1083,8 @@ def setpkg(packages, force=False, update_pypath=False, pid=None):
         loaded again) if already loaded
     """
     logger.debug('setpkg %s' % ([force, update_pypath, pid, sys.executable]))
+    if isinstance(packages, basestring):
+        packages = [packages]
     session = Session(pid=pid)
     for name in packages:
         session.add_package(name, force=force)
@@ -1100,6 +1098,8 @@ def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
     :param force: set to True if package should be re-run (unloaded, then
         loaded again) if already loaded
     """
+    if isinstance(packages, basestring):
+        packages = [packages]
     session = Session(pid=pid)
     for name in packages:
         session.remove_package(name, recurse=recurse)
