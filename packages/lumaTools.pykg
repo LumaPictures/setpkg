@@ -20,8 +20,14 @@ env.PATH += '$HOME/bin'
 #env PATH /usr/local/lumaGit-1.6.2/bin
 env.PATH += '/usr/local/mysql/bin'
 env.PATH += '/usr/local/bin'
-env.DEV_ROOT.setdefault('$LUMA_SOFT/dev')
-env.USER_DEV = '$DEV_ROOT/$USER'
+
+env.DEV_LOCAL = '/lumalocal/dev/$USER'
+env.DEV_SERVER = '$LUMA_SOFT/dev/$USER'
+if env.DEV_MODE == 'local':
+    env.USER_DEV = env.DEV_LOCAL
+else:
+    env.USER_DEV = env.DEV_SERVER
+
 env.LD_LIBRARY_PATH += '$LUMA_SOFT/lib/$OS_ARCH'
 env.LUMA_LD_LIBRARY_PATH += '$LUMA_SOFT/lib/$OS_ARCH'
 if system() == 'Linux':

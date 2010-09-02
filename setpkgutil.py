@@ -1,10 +1,18 @@
 import setpkg as _setpkg
 
 def packagedir(env, pkg, version):
+    '''
+    use when a package corresponds exactly with a first-level repo subdirectory
+    '''
     repoRoot, version = repodir(env, pkg, version)
     return repoRoot / pkg, version
 
 def repodir(env, pkg, version):
+    '''
+    the root of the user's dev repo.
+
+    set forceto to 'server' or 'local' to force the returned path.
+    '''
     if isdev(env, pkg, version):
         _setpkg.logger.debug("(pkg %s in dev mode)" % pkg)
         return env.USER_DEV, stripdev(version)

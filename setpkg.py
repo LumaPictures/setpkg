@@ -416,7 +416,7 @@ class EnvironmentVariable(object):
         return '%s(%r)' % (self.__class__.__name__, self._name)
 
     def __nonzero__(self):
-        return self._name in os.environ
+        return self._name in os.environ and self.value()
 
     @property
     def name(self):
@@ -474,7 +474,7 @@ class EnvironmentVariable(object):
         return os.path.join(self.value(), *value.split('/'))
 
     def value(self):
-        return os.environ[self._name]
+        return os.environ.get(self._name, None)
 
     def split(self):
         return _split(self.value())
