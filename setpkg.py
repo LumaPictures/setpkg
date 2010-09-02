@@ -567,7 +567,7 @@ def walk_package_files():
             if f.endswith('.pykg'):
                 yield os.path.join(path, f)
 
-def list_package_choices(package=None, versions=True):
+def list_package_choices(package=None, versions=True, aliases=False):
     '''
     list available packages in NAME-VERSION format.
 
@@ -589,6 +589,9 @@ def list_package_choices(package=None, versions=True):
             pkg = Package(package_file)
             for version in pkg.versions:
                 packages.append('%s-%s' % (pkg.name, version))
+            if aliases:
+                for alias in sorted(pkg.aliases):
+                    packages.append('%s-%s' % (pkg.name, alias))
         except PackageError, err:
             pass
             #logger.error(str(err))

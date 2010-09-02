@@ -2,17 +2,18 @@
 
 # core commands
 setenv PATH ${PATH}:`dirname $SETPKG_PATH`/bin
-alias setpkg 'eval `setpkgcli --pid $$ set $SHELL \!*`' 
-alias unsetpkg 'eval `setpkgcli --pid $$ unset $SHELL \!*`' 
-alias lspkg 'setpkgcli --pid $$ list \!*' 
-alias runpkg 'setpkg \!*; eval `setpkgcli info --exe \!*`'
+alias setpkg 'eval `setpkgcli --pid $$ set $SHELL \!*`'
+alias unsetpkg 'eval `setpkgcli --pid $$ unset $SHELL \!*`'
+alias lspkg 'setpkgcli --pid $$ list \!*'
+alias pkginfo 'setpkgcli info \!*'
+alias runpkg 'setpkg \!*; eval `pkginfo --exe \!*`'
 alias addenv 'eval `setpkgcli env $SHELL prepend \!*`'
 
 # system aliases
 eval `setpkgcli alias $SHELL`
 
 # completion
-set packages = `lspkg`
+set packages = `lspkg --aliases`
 set base_packages = `lspkg --base`
 
 complete setpkg  p/1/\$packages/ n/-rehash/\$packages/

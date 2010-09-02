@@ -5,6 +5,7 @@ import os
 dir = os.path.dirname(os.path.dirname(sys.argv[0]))
 sys.path.insert(0, dir)
 from setpkg import *
+from setpkg import _splitname
 
 import pprint
 import argparse
@@ -19,7 +20,9 @@ def cli():
         if args.active:
             result('\n'.join(list_active_packages(args.packages, args.pid)))
         else:
-            result('\n'.join(list_package_choices(args.packages, versions=not args.base)))
+            result('\n'.join(list_package_choices(args.packages,
+                                                  versions=not args.base,
+                                                  aliases=args.aliases)))
 
     def doit(func, args):
         shell = get_shell(args.shell[0])
@@ -70,6 +73,20 @@ def cli():
         if args.info_type == 'exe':
             package = get_package(args.package[0])
             result(package.executable)
+            return
+
+        if args.aliases:
+            package = get_package(args.package[0])
+            if version:
+                # resolve alias to real version
+                version = package.aliases.get(version, version)
+                aliases = dict([(a, v) for a,v in package.aliases.items() if v==version])
+            else:
+                aliases = package.aliases
+            width = max(*[len(alias) for alias in sorted(aliases)])
+            
+            for alias in sorted(aliases): 
+                result(alias.ljust(width + 10) + aliases[alias])
             return
 
         curr_version = current_version(shortname)
@@ -168,6 +185,9 @@ def cli():
     list_parser.add_argument('--base', '-b', dest='base', action='store_true',
                        help='list only base packages without version')
 
+    list_parser.add_argument('--aliases', dest='aliases', action='store_true',
+                       help='include aliases')
+
     list_parser.set_defaults(func=list_packages)
 
     #--- info -----------
@@ -183,6 +203,9 @@ def cli():
     info_parser.add_argument('--version', dest='info_type',
                              action='store_const', const='version',
                              help='get the current version for a package')
+    info_parser.add_argument('--aliases', dest='aliases',
+                             action='store_true',
+                             help='list aliases for a package or a package version')
     info_parser.set_defaults(func=get_info, info_type='vars')
 
     #--- aliases -----------
