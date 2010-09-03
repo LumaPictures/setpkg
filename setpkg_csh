@@ -8,7 +8,9 @@ alias unsetpkg 'eval `$bin/setpkgcli --pid $$ unset $SHELL \!*`'
 alias lspkg '$bin/setpkgcli --pid $$ list \!*'
 alias pkginfo '$bin/setpkgcli info \!*'
 alias runpkg 'setpkg \!*; eval `pkginfo --exe \!*`'
+
 alias addenv 'eval `$bin/setpkgcli env $SHELL prepend \!*`'
+alias delenv 'eval `$bin/setpkgcli env $SHELL pop \!*`'
 
 # system aliases
 eval `$bin/setpkgcli alias $SHELL`

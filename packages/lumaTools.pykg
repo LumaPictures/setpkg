@@ -23,7 +23,7 @@ env.PATH += '/usr/local/bin'
 
 # DEV_ROOT overrides all others
 if env.DEV_ROOT:
-    env.USER_DEV = '$DEV_ROOT/dev/$USER'
+    env.USER_DEV = '$DEV_ROOT/$USER'
 else:
     env.DEV_LOCAL = '/lumalocal/dev/$USER'
     env.DEV_SERVER = '$LUMA_SOFT/dev/$USER'
