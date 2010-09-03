@@ -25,10 +25,10 @@ def cli():
                                                   aliases=args.aliases)))
 
     def doit(func, args):
-        if args.set_global:
-            shell = get_shell(args.shell[0])
-        else:
+        if platform.system() == 'Windows' and args.set_global:
             shell = get_shell(args.shell[0], set_global=True)
+        else:
+            shell = get_shell(args.shell[0])
         logger.debug('setpkg start %s' % (args.packages,))
         try:
             changed = func()
