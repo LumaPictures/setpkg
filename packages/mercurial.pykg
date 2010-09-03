@@ -1,6 +1,7 @@
 '''
 [main]
-version-regex = (\d+)\.(\d+)\.(\d+)
+# last part is optional
+version-regex = (\d+)\.(\d+)(?:\.(\d+))?
 default-version = 1.5.1
 
 [versions]
