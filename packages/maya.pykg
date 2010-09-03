@@ -28,8 +28,11 @@ pkgpath, VERSION = packagedir(env, NAME, VERSION)
 
 env.MAYA_VERSION_NUM = VERSION_PARTS[0]
 env.MAYA_VERSION_FULL = VERSION
-env.MAYA_VERSION = '$MAYA_VERSION_FULL-x64'
 
+if system() == 'Windows':
+	env.MAYA_VERSION = '$MAYA_VERSION_NUM-x64'
+else:
+	env.MAYA_VERSION = '$MAYA_VERSION_FULL-x64'
 
 if env.OS_TYPE == 'Linux':
 	env.MAYA_LOCATION = '/usr/autodesk/maya$MAYA_VERSION'
