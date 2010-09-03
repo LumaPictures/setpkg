@@ -488,6 +488,7 @@ class EnvironmentVariable(object):
         return os.environ.get(self._name, None)
 
     def split(self):
+        # FIXME: value could be None.  should we return empty list or raise an error?
         return _split(self.value())
 
 #------------------------------------------------

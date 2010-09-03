@@ -23,7 +23,7 @@ def stripdev(version):
     return version[:-4] if version.endswith('.dev') else version
 
 def isdev(env, pkg, version):
-    return pkg in env.DEV_PACKAGES.split() or version.endswith('.dev')
+    return (env.DEV_PACKAGES and pkg in env.DEV_PACKAGES.split()) or version.endswith('.dev')
 
 def isDevEnv():
     return bool(os.environ.get('DEV_PACKAGES', ''))
