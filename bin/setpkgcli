@@ -25,7 +25,10 @@ def cli():
                                                   aliases=args.aliases)))
 
     def doit(func, args):
-        shell = get_shell(args.shell[0])
+        if args.set_global:
+            shell = get_shell(args.shell[0])
+        else:
+            shell = get_shell(args.shell[0], set_global=True)
         logger.debug('setpkg start %s' % (args.packages,))
         try:
             changed = func()
@@ -156,6 +159,10 @@ def cli():
     set_parser.add_argument('--reload', dest='reload', action='store_true',
                        help='set packages even if already set')
 
+    if platform.system() == 'Windows':
+        set_parser.add_argument('-g', '--global', dest='set_global', action='store_true',
+                           help='set environment for all sessions until system restart')
+
     set_parser.set_defaults(func=set_packages)
 
     #--- unset -----------
@@ -170,6 +177,10 @@ def cli():
 
     unset_parser.add_argument('--recurse', '-r', action='store_true',
                        help='recursively unset dependencies of this package')
+
+    if platform.system() == 'Windows':
+        set_parser.add_argument('-g', '--global', dest='set_global', action='store_true',
+                           help='unset environment for all sessions until system restart')
 
     unset_parser.set_defaults(func=unset_packages)
 

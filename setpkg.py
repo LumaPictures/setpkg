@@ -233,6 +233,8 @@ class Tsch(Shell):
         return "alias %s '%s';" % ( key, value)
 
 class WinShell(Shell):
+    def __init__(self, set_global=False):
+        self.set_global = set_global
     def prefix(self):
         # Add this directory onto the path to make sure setenv is available
         return 'set PATH=%s;%%PATH%%' % THIS_DIR
@@ -256,13 +258,21 @@ class WinShell(Shell):
         # HKCU\\Volatile Environment
         # ...and newly launched programs will detect this
         # Will also add to process env. vars
-        return ('setenv -v %s %s\n' % ( key, quotedValue )  +
-                'set %s=%s\n' % ( key, value ))
+        if self.set_global:
+            cmd = 'setenv -v %s %s\n' % (key, quotedValue)
+        else:
+            cmd = ''
+        cmd += 'set %s=%s\n' % (key, value)
+        return cmd
+
     def unsetenv(self, key):
         # env vars are not cleared until restart!
-        # return r'REG delete "HKCU\Volatile Environment" /V "%s"\n' % ( key, )
-        return ('setenv -v %s -delete\n' % key  +
-                'set %s=\n' % key)
+        if self.set_global:
+            cmd = 'setenv -v %s -delete\n' % (key,)
+        else:
+            cmd = ''
+        cmd += 'set %s=\n' % (key,)
+        return cmd
 
 shells = { 'bash' : Bash,
            'tcsh' : Tsch,
