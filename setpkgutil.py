@@ -1,4 +1,5 @@
 import setpkg as _setpkg
+import os
 
 def packagedir(env, pkg, version):
     '''
@@ -25,5 +26,5 @@ def stripdev(version):
 def isdev(env, pkg, version):
     return (env.DEV_PACKAGES and pkg in env.DEV_PACKAGES.split()) or version.endswith('.dev')
 
-def isDevEnv():
+def anydev():
     return bool(os.environ.get('DEV_PACKAGES', ''))
