@@ -205,6 +205,9 @@ def _getppid():
 #------------------------------------------------
 
 class Shell(object):
+    def __init__(self, **kwargs):
+        pass
+
     def prefix(self):
         '''
         Abstract base class representing a system shell.
@@ -279,8 +282,8 @@ shells = { 'bash' : Bash,
            'tcsh' : Tsch,
            'DOS' : WinShell}
 
-def get_shell(shell_name):
-    return shells[os.path.basename(shell_name)]()
+def get_shell_class(shell_name):
+    return shells[os.path.basename(shell_name)]
 
 #------------------------------------------------
 # Environment Classes

@@ -10,25 +10,37 @@ from setpkg import _splitname
 import pprint
 import argparse
 
+def _get_shell(shell, *args, **kwargs):
+    try:
+        cls = get_shell_class(shell)
+        return cls(*args, **kwargs)
+    except KeyError:
+        logger.error('unknown shell: %s' % shell)
+        sys.exit(1)
+  
+def result(value):
+    sys.__stdout__.write(value + '\n')
+
+# TODO: move this to the Shell class
+def status(value):
+    sys.__stdout__.write('echo %s;\n' % value)
+  
 def cli():
     logger.debug(str(sys.argv))
 
-    def result(value):
-        sys.__stdout__.write(value + '\n')
-
     def list_packages(args):
         if args.active:
-            result('\n'.join(list_active_packages(args.packages, args.pid)))
+            for pkg in list_active_packages(args.packages, args.pid):
+                status(pkg)
         else:
-            result('\n'.join(list_package_choices(args.packages,
+            for pkg in list_package_choices(args.packages,
                                                   versions=not args.base,
-                                                  aliases=args.aliases)))
+                                                  aliases=args.aliases):
+                status(pkg)
 
     def doit(func, args):
-        if platform.system() == 'Windows' and args.set_global:
-            shell = get_shell(args.shell[0], set_global=True)
-        else:
-            shell = get_shell(args.shell[0])
+        set_global = platform.system() == 'Windows' and args.set_global
+        shell = _get_shell(args.shell, set_global=set_global)
         logger.debug('setpkg start %s' % (args.packages,))
         try:
             changed = func()
@@ -75,7 +87,7 @@ def cli():
         shortname, version = _splitname(args.package[0])
         if args.info_type == 'exe':
             package = get_package(args.package[0])
-            result(package.executable)
+            status(package.executable)
             return
 
         if args.aliases:
@@ -89,7 +101,7 @@ def cli():
             width = max(*[len(alias) for alias in sorted(aliases)])
             
             for alias in sorted(aliases): 
-                result(alias.ljust(width + 10) + aliases[alias])
+                status(alias.ljust(width + 10) + aliases[alias])
             return
 
         curr_version = current_version(shortname)
@@ -105,7 +117,7 @@ def cli():
 
     def alias(args):
         package_files = sorted(walk_package_files())
-        shell = get_shell(args.shell[0])
+        shell = _get_shell(args.shell)
         for package_file in package_files:
             try:
                 pkg = Package(package_file)
@@ -118,7 +130,7 @@ def cli():
                 pass
 
     def env(args):
-        shell = get_shell(args.shell[0])
+        shell = _get_shell(args.shell)
         var = args.variable[0]
         value = args.value
         if args.action == 'prepend':
@@ -140,23 +152,23 @@ def cli():
         result(cmd)
 
     parser = argparse.ArgumentParser(
+        prog='pkg',
         description='Manage environment variables for a software package.')
-
-    shell_kwargs = dict(metavar='SHELL', type=str, nargs=1,
-                       help='the shell from which this is run. (options are %s)' % ', '.join(shells.keys()))
 
     parser.add_argument('--pid', metavar='PID', type=str, nargs='?',
                        help='current process id (usually stored in $$)')
 
+    parser.add_argument('--shell', metavar='SHELL', type=str, nargs='?',
+                       help='the shell from which this is run. (options are %s)' % ', '.join(shells.keys()))
+
     subparsers = parser.add_subparsers(help='actions to perform')
     #--- set -----------
     set_parser = subparsers.add_parser('set', help='add packages')
-    set_parser.add_argument('shell', **shell_kwargs)
 
     set_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='+',
                        help='packages to add or remove')
 
-    set_parser.add_argument('--reload', dest='reload', action='store_true',
+    set_parser.add_argument('-f', '--force', '--reload', dest='reload', action='store_true',
                        help='set packages even if already set')
 
     if platform.system() == 'Windows':
@@ -167,7 +179,6 @@ def cli():
 
     #--- unset -----------
     unset_parser = subparsers.add_parser('unset', help='remove packages')
-    unset_parser.add_argument('shell', **shell_kwargs)
 
     unset_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='*',
                        help='packages to add or remove')
@@ -185,7 +196,7 @@ def cli():
     unset_parser.set_defaults(func=unset_packages)
 
     #--- list -----------
-    list_parser = subparsers.add_parser('list', help='list packages')
+    list_parser = subparsers.add_parser('ls', help='list packages')
 
     list_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='?',
                            help='packages to add or remove')
@@ -220,13 +231,12 @@ def cli():
     info_parser.set_defaults(func=get_info, info_type='vars')
 
     #--- aliases -----------
-    alias_parser = subparsers.add_parser('alias', help='print alias commands for the current shell')
-    alias_parser.add_argument('shell', **shell_kwargs)
+    alias_parser = subparsers.add_parser('system-alias', help='create system aliases for the current shell')
     alias_parser.set_defaults(func=alias)
 
     #--- env -----------
     env_parser = subparsers.add_parser('env', help='directly modify environment variables')
-    env_parser.add_argument('shell', **shell_kwargs)
+
     env_parser.add_argument('action', metavar='ACTION', type=str, choices=['prepend', 'pop', 'set', 'unset'],
                              help='action to perform')
     env_parser.add_argument('variable', metavar='VAR', type=str, nargs=1,
