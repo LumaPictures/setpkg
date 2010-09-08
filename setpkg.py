@@ -128,6 +128,7 @@ import shelve
 import tempfile
 import shutil
 import hashlib
+import inspect
 from collections import defaultdict
 from ConfigParser import RawConfigParser, ConfigParser, NoSectionError
 
@@ -955,8 +956,6 @@ class Session():
 
     def _exec_package(self, package, depth=0):
 
-        def filter_local(module):
-            return [(k,v) for k,v in module.__dict__.iteritems() if not k.startswith('_')]
         g = {}
         # environment
         g['env'] = package._environ
@@ -977,14 +976,19 @@ class Session():
 
         # platform utilities
         import platform
-        g.update(filter_local(platform))
+        # filter local and non-functions
+        g.update([(k,v) for k,v in platform.__dict__.iteritems() \
+                  if not k.startswith('_') and inspect.isfunction(v)])
 
         try:
             import setpkgutil
-            for protected in g.keys():
-                assert protected not in setpkgutil.__dict__, \
-                    "setpkgutil contains object with protected name: %s" % protected
-            g.update(filter_local(setpkgutil))
+            utildict = setpkgutil.__dict__.copy()
+            overrides = set(g.keys()).intersection(utildict.keys())
+            for o in overrides:
+                logger.warn("setpkgutil contains object with protected name %r: ignoring" % o)
+                utildict.pop(o)
+            # filter local
+            g.update([(k,v) for k,v in utildict.iteritems() if not k.startswith('_')])
         except ImportError:
             pass
         #logger.debug('%s: execfile %r' % (package.fullname, package.file))
