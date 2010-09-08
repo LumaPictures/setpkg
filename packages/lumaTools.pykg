@@ -33,7 +33,9 @@ else:
         env.USER_DEV = env.DEV_SERVER
 
 env.LD_LIBRARY_PATH += '$LUMA_SOFT/lib/$OS_ARCH'
-env.LUMA_LD_LIBRARY_PATH += '$LUMA_SOFT/lib/$OS_ARCH'
+# is this still necessary?
+#env.LUMA_LD_LIBRARY_PATH += '$LUMA_SOFT/lib/$OS_ARCH'
+
 if system() == 'Linux':
     env.PATH += '$LUMA_SOFT/linux/bin'
 elif system() == 'Windows':
