@@ -24,132 +24,138 @@ def result(value):
 # TODO: move this to the Shell class
 def status(value):
     sys.__stdout__.write('echo %s;\n' % value)
-  
+
+def list_packages(args):
+    if args.active:
+        for pkg in list_active_packages(args.packages, args.pid):
+            status(pkg)
+    else:
+        for pkg in list_package_choices(args.packages,
+                                              versions=not args.base,
+                                              aliases=args.aliases):
+            status(pkg)
+
+def doit(func, args):
+    set_global = platform.system() == 'Windows' and args.set_global
+    shell = _get_shell(args.shell, set_global=set_global)
+    logger.debug('setpkg start %s' % (args.packages,))
+    try:
+        changed = func()
+    except PackageError, err:
+        sys.stderr.write(str(err) + '\n')
+        sys.exit(0)
+    except Exception, err:
+        import traceback
+        logger.error(traceback.format_exc())
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(0)
+    logger.debug('changed variables: %s' % (sorted(changed),))
+    for var in changed:
+        if var in os.environ:
+            cmd = shell.setenv(var, os.environ[var])
+        else:
+            cmd = shell.unsetenv(var)
+        result(cmd)
+        logger.debug(cmd)
+
+def set_packages(args):
+    def f():
+        added, removed = setpkg(args.packages, force=args.reload, pid=args.pid)
+        changed = set([])
+        for package in added + removed:
+            changed.update(package.environ.keys())
+        return sorted(changed)
+    doit(f, args)
+
+def unset_packages(args):
+    def f():
+        if args.all:
+            packages = list_active_packages(pid=args.pid)
+        else:
+            packages = args.packages
+        removed = unsetpkg(packages, pid=args.pid, recurse=args.recurse)
+        changed = set([])
+        for package in removed:
+            changed.update(package.environ.keys())
+        return sorted(changed)
+    doit(f, args)
+
+def get_info(args):
+    shortname, version = _splitname(args.package[0])
+    if args.info_type == 'exe':
+        package = get_package(args.package[0])
+        status(package.executable)
+        return
+
+    if args.aliases:
+        package = get_package(args.package[0])
+        if version:
+            # resolve alias to real version
+            version = package.aliases.get(version, version)
+            aliases = dict([(a, v) for a,v in package.aliases.items() if v==version])
+        else:
+            aliases = package.aliases
+        width = max(*[len(alias) for alias in sorted(aliases)])
+        
+        for alias in sorted(aliases): 
+            status(alias.ljust(width + 10) + aliases[alias])
+        return
+
+    curr_version = current_version(shortname)
+    if curr_version is None:
+        print "package is not currently set"
+        return
+
+    session = Session(pid=args.pid)
+    package = session.shelf[shortname]
+    pprint.pprint({'vars': package.environ,
+                   'version': current_version(shortname),
+                   }[args.info_type])
+
+def alias(args):
+    package_files = sorted(walk_package_files())
+    shell = _get_shell(args.shell)
+    for package_file in package_files:
+        try:
+            pkg = Package(package_file)
+            if pkg.config.has_section('system-aliases'):
+                for alias_suffix, pkg_version in pkg.config.items('system-aliases'):
+                    if not pkg_version:
+                        pkg_version = alias_suffix
+                    result(shell.alias(pkg.name + alias_suffix, 'runpkg %s-%s' % (pkg.name, pkg_version)))
+        except PackageError, err:
+            pass
+
+def env(args):
+    shell = _get_shell(args.shell)
+    var = args.variable[0]
+    value = args.value
+    if args.action == 'prepend':
+        if value is None:
+            logger.error("error: provide a value to prepend")
+            sys.exit(1)
+        prependenv(var, value)
+        cmd = shell.setenv(var, os.environ[var])
+    elif args.action == 'pop':
+        popenv(var, value)
+        val = os.environ[var]
+        if val:
+            cmd = shell.setenv(var, os.environ[var])
+        else:
+            cmd = shell.unsetenv(var)
+    elif args.action == 'set':
+        if value is None:
+            logger.error("error: provide a value to set")
+            sys.exit(1)
+        cmd = shell.setenv(var, value)
+    elif args.action == 'unset':
+        cmd = shell.unsetenv(var)
+    else:
+        raise
+    result(cmd)
+     
 def cli():
     logger.debug(str(sys.argv))
-
-    def list_packages(args):
-        if args.active:
-            for pkg in list_active_packages(args.packages, args.pid):
-                status(pkg)
-        else:
-            for pkg in list_package_choices(args.packages,
-                                                  versions=not args.base,
-                                                  aliases=args.aliases):
-                status(pkg)
-
-    def doit(func, args):
-        set_global = platform.system() == 'Windows' and args.set_global
-        shell = _get_shell(args.shell, set_global=set_global)
-        logger.debug('setpkg start %s' % (args.packages,))
-        try:
-            changed = func()
-        except PackageError, err:
-            sys.stderr.write(str(err) + '\n')
-            sys.exit(0)
-        except Exception, err:
-            import traceback
-            logger.error(traceback.format_exc())
-            traceback.print_exc(file=sys.stderr)
-            sys.exit(0)
-        logger.debug('changed variables: %s' % (sorted(changed),))
-        for var in changed:
-            if var in os.environ:
-                cmd = shell.setenv(var, os.environ[var])
-            else:
-                cmd = shell.unsetenv(var)
-            result(cmd)
-            logger.debug(cmd)
-
-    def set_packages(args):
-        def f():
-            added, removed = setpkg(args.packages, force=args.reload, pid=args.pid)
-            changed = set([])
-            for package in added + removed:
-                changed.update(package.environ.keys())
-            return sorted(changed)
-        doit(f, args)
-
-    def unset_packages(args):
-        def f():
-            if args.all:
-                packages = list_active_packages(pid=args.pid)
-            else:
-                packages = args.packages
-            removed = unsetpkg(packages, pid=args.pid, recurse=args.recurse)
-            changed = set([])
-            for package in removed:
-                changed.update(package.environ.keys())
-            return sorted(changed)
-        doit(f, args)
-
-    def get_info(args):
-        shortname, version = _splitname(args.package[0])
-        if args.info_type == 'exe':
-            package = get_package(args.package[0])
-            status(package.executable)
-            return
-
-        if args.aliases:
-            package = get_package(args.package[0])
-            if version:
-                # resolve alias to real version
-                version = package.aliases.get(version, version)
-                aliases = dict([(a, v) for a,v in package.aliases.items() if v==version])
-            else:
-                aliases = package.aliases
-            width = max(*[len(alias) for alias in sorted(aliases)])
-            
-            for alias in sorted(aliases): 
-                status(alias.ljust(width + 10) + aliases[alias])
-            return
-
-        curr_version = current_version(shortname)
-        if curr_version is None:
-            print "package is not currently set"
-            return
-
-        session = Session(pid=args.pid)
-        package = session.shelf[shortname]
-        pprint.pprint({'vars': package.environ,
-                       'version': current_version(shortname),
-                       }[args.info_type])
-
-    def alias(args):
-        package_files = sorted(walk_package_files())
-        shell = _get_shell(args.shell)
-        for package_file in package_files:
-            try:
-                pkg = Package(package_file)
-                if pkg.config.has_section('system-aliases'):
-                    for alias_suffix, pkg_version in pkg.config.items('system-aliases'):
-                        if not pkg_version:
-                            pkg_version = alias_suffix
-                        result(shell.alias(pkg.name + alias_suffix, 'runpkg %s-%s' % (pkg.name, pkg_version)))
-            except PackageError, err:
-                pass
-
-    def env(args):
-        shell = _get_shell(args.shell)
-        var = args.variable[0]
-        value = args.value
-        if args.action == 'prepend':
-            prependenv(var, value)
-            cmd = shell.setenv(var, os.environ[var])
-        elif args.action == 'pop':
-            popenv(var, value)
-            val = os.environ[var]
-            if val:
-                cmd = shell.setenv(var, os.environ[var])
-            else:
-                cmd = shell.unsetenv(var)
-        elif args.action == 'set':
-            cmd = shell.setenv(var, value)
-        elif args.action == 'unset':
-            cmd = shell.unsetenv(var)
-        else:
-            raise
-        result(cmd)
 
     parser = argparse.ArgumentParser(
         prog='pkg',
