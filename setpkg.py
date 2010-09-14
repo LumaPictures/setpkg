@@ -242,9 +242,6 @@ class Tsch(Shell):
 class WinShell(Shell):
     def __init__(self, set_global=False):
         self.set_global = set_global
-    def prefix(self):
-        # Add this directory onto the path to make sure setenv is available
-        return 'set PATH=%s;%%PATH%%' % THIS_DIR
     def setenv(self, key, value):
         value = value.replace('/', '\\\\')
         # exclamation marks allow delayed expansion
@@ -674,7 +671,7 @@ class FakePackage(object):
 
     @propertycache
     def hash(self):
-        return '%s-%s' % (self.name, sel.version)
+        return '%s-%s' % (self.name, self.version)
 
 class BasePackage(object):
 
@@ -699,7 +696,7 @@ class BasePackage(object):
 
     def get_dependencies(self):
         return [PackageInterface(pkg) for pkg in _split(os.environ['SETPKG_DEPENDENCIES_%s' % self.name])]
-    
+
     def get_dependents(self):
         '''
         return a list of (dependent, explicit_version)
@@ -708,15 +705,25 @@ class BasePackage(object):
         of the current package
         '''
         try:
-            data = _split(os.environ['SETPKG_DEPENDENTS_%s' % self.name])
-            self._require_map = dict([(_shortname(name.lstrip('!')), not name.startswith('!')) for name in data])
-            return [PackageInterface(name.lstrip('!')) for name in data]
+            return [PackageInterface(name) for name in _split(os.environ['SETPKG_DEPENDENTS_%s' % self.name])]
         except KeyError:
             return []
 
-    def requires_explicit_version(self, shortname):
-        return self._require_map[shortname]
+    def walk_dependents(self):
+        for dependent in self.get_dependents():
+            if not self.requires_explicit_version(dependent.name):
+                yield dependent
+            for subdepend in dependent.get_dependents():
+                yield subdepend
 
+    def requires_explicit_version(self, shortname):
+        try:
+            map = dict([_splitname(pkg) \
+                for pkg in _split(os.environ['SETPKG_DEPENDENCIES_%s' % shortname])])
+        except KeyError:
+            return False
+        return bool(map.get(self.name, False))
+  
     def __eq__(self, other):
         # use file instead?
         return (self.name, self.version) == (other.name, other.version)
@@ -761,12 +768,7 @@ class PackageInterface(BasePackage):
 
     def add_dependent(self, package):
         var = 'SETPKG_DEPENDENTS_%s' % self.name
-        if not self.explicit_version:
-            # if the package being executed did not specify a requirement
-            # version, mark it
-            prependenv(var, '!' + package.fullname)
-        else:
-            prependenv(var, package.fullname)
+        prependenv(var, package.name)
 
 class Package(BasePackage):
     '''
@@ -795,6 +797,15 @@ class Package(BasePackage):
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.file, self.version)
 
+    def _read_packagelist(self, section):
+        pkgs = []
+        if self.config.has_section(section):
+            for glob, pkglist in self.config.items(section):
+                if re.compile(fnmatch.translate(glob)).match(self.version):
+                    for pkg in pkglist.split(','):
+                        pkgs.append(pkg.strip())
+        return pkgs
+  
     @property
     def fullname(self):
         return self.name + PKG_SEP + self.version
@@ -945,6 +956,10 @@ class Package(BasePackage):
         self._dependencies.append(package)
         package._dependents.append(self)
     
+    @propertycache
+    def subpackages(self):
+        return self._read_packagelist('subs')
+
     @property
     def environ(self):
         return dict(self._environ.__dict__['_environ'])
@@ -1086,44 +1101,44 @@ class Session():
                 '%s%s%s' % (package.version, META_SEP, package.hash))
 
         def load(section, prefix, parent):
-            if package.config.has_section(section):
-                #var = getattr(g['env'], 'SETPKG_%s_%s' % (prefix, package.name,))
-                pkgs = []
-                for glob, pkglist in package.config.items(section):
-                    if re.compile(fnmatch.translate(glob)).match(package.version):
-                        for pkg in pkglist.split(','):
-                            pkg = pkg.strip()
-                            self.add_package(pkg, parent=parent, depth=depth+1)
-                            #var.prepend(_shortname(pkg), no_dupes=True, expand=False)
-                            pkgs.append(pkg)
-                return pkgs
-            return []
+            pkgs = package._read_packagelist(section)
+            for pkg in pkgs:
+                self.add_package(pkg, parent=parent, depth=depth+1)
+            return pkgs  
 
         requirements = load('requires', 'DEPENDENCIES', None)
+
         # add ourself to the dependents of our dependencies (or did i just blow your mind?)
         for pkg in requirements:
             shortname, version = _splitname(pkg)
             var = getattr(g['env'], 'SETPKG_DEPENDENTS_%s' % (shortname,))
-            name = ('' if version else '!') + package.name
-            var.prepend(name, expand=False)
+            var.prepend(package.name, expand=False)
         
-        var = getattr(g['env'], 'SETPKG_DEPENDENTS_%s' % (package.name,))
-        values = set([pkg.lstrip('!') for pkg in var.split()])
+        # add our direct dependencies, using shortname
+        var = getattr(g['env'], 'SETPKG_DEPENDENCIES_%s' % (package.name,))
+        values = set(var.split())
         for pkg in requirements:
-            pkg = _shortname(pkg)
-            if pkg not in values:    
+            if pkg not in values:
                 var.prepend(pkg, expand=False)
 
+        # Execute the file!
+#        try:
         execfile(package.file, g)
-        load('subs', 'DEPENDENTS', package)
-        
-
 #        except Exception, err:
 #            # TODO: add line and context info for last frame
 #            import traceback
 #            traceback.print_exc(file=self.out)
 #            raise PackageExecutionError(package.name, str(err))
         #logger.debug('%s: execfile complete' % package.fullname)
+         
+        subpackages = load('subs', 'DEPENDENTS', package)
+        
+#        # add our direct dependencies, using requested name
+#        var = getattr(g['env'], 'SETPKG_SUBS_%s' % (package.name,))
+#        for pkg in subpackages:
+#            var.prepend(pkg, expand=False)
+
+
 
     def add_package(self, name, parent=None, force=False, depth=0):
         package = get_package(name)
@@ -1171,6 +1186,13 @@ class Session():
         self.shelf[package.name] = package
         
         if reloading:
+#            completed = []
+#            for dependent in package.walk_dependents():
+#                print dependent, package.requires_explicit_version(dependent.name), completed
+#                if dependent.name not in completed:
+#                    completed.append(dependent.name)
+#                    self.add_package(dependent.fullname, depth=depth+1, force=True)
+
             # if we just reloaded this package, also reload the dependents
             for dependent in package.get_dependents():
                 if not package.requires_explicit_version(dependent.name):
@@ -1187,9 +1209,6 @@ class Session():
             if package.version != version:
                 raise InvalidPackageVersion(package, version,
                     "cannot be removed because it is not currently set (active version is %s)" % (package.version,))
-        
-        # get this info from the environ before it is removed
-        dependents = package.get_dependents()
 
         for var, values in package.environ.iteritems():
             for value in values:
@@ -1202,17 +1221,12 @@ class Session():
         self._removed.append(package)
 
         if recurse:
-            for sub in dependents:
-                self.remove_package(sub.name, recurse, depth+1)
-#            for sub in package.dependencies():
-#                if sub.dependents() == [package]:
-#                    self.remove_package(sub.fullname, recurse, depth+1)
-#                else:
-#                    logger.warn('not removing %s because it has other dependents' % sub.fullname)
-        else:
-            for parent in package.dependents():
-                if package.explicit_version:
-                    logger.warn('WARNING: %s package requires removed package %s' % (parent.fullname, package.fullname))
+            for sub in package.subpackages:
+                self.remove_package(sub, recurse, depth+1)
+
+        elif not reloading:
+            for depend in package.get_dependents():
+                self.remove_package(depend.fullname, depth=depth+1)
         return package
 
     @property
