@@ -1,8 +1,10 @@
 '''
 [versions]
 1.0 =
+
+[requires]
+* = python
 ''' 
-setpkg('python')
 pkgpath, VERSION = packagedir(env, NAME, VERSION)
 
 env.PATH += pkgpath + '/bin'

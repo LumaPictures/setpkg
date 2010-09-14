@@ -22,6 +22,13 @@ default-version = 6.0
 5.1v2 =
 5.1v1 =
 
+[requires]
+6.* = python-2.5
+5.* = python-2.5
+
+[subs]
+* = djv
+
 [system-aliases]
 6 = 6.0
 5 = 5.2
@@ -59,9 +66,3 @@ env.OFX_PLUGIN_PATH += '$LUMA_SOFT/nuke/ofx_plugins/$OS_TYPE-$ARCH'
 # would have included it... so nixing for now
 #env NDK_PATH $NUKE_APP/Contents/MacOS
 
-setpkg('djv')
-
-pythonver = {'5' : '2.5',
-             '6' : '2.5'}[VERSION_PARTS[0]]
-             
-setpkg('python-' + pythonver)

@@ -87,7 +87,7 @@ def get_info(args):
         status(package.executable)
         return
 
-    if args.aliases:
+    elif args.info_type == 'aliases':
         package = get_package(args.package[0])
         if version:
             # resolve alias to real version
@@ -101,6 +101,8 @@ def get_info(args):
             status(alias.ljust(width + 10) + aliases[alias])
         return
 
+    # info that operates on active packages only
+    # FIXME: should we split this into another command?
     curr_version = current_version(shortname)
     if curr_version is None:
         print "package is not currently set"
@@ -108,9 +110,13 @@ def get_info(args):
 
     session = Session(pid=args.pid)
     package = session.shelf[shortname]
-    pprint.pprint({'vars': package.environ,
-                   'version': current_version(shortname),
-                   }[args.info_type])
+    if args.info_type == 'vars':
+        pprint.pprint({'vars': package.environ,
+                       'version': current_version(shortname),
+                       }[args.info_type])
+    elif args.info_type == 'dependents':
+        for pkg, explicit_version in package.get_dependents(): 
+            status(pkg)
 
 def alias(args):
     package_files = sorted(walk_package_files())
@@ -159,6 +165,7 @@ def cli():
 
     parser = argparse.ArgumentParser(
         prog='pkg',
+        usage='%(prog)s [options]',
         description='Manage environment variables for a software package.')
 
     parser.add_argument('--pid', metavar='PID', type=str, nargs='?',
@@ -224,16 +231,20 @@ def cli():
                              help='package to query')
     info_parser.add_argument('--vars', '-v', dest='info_type',
                              action='store_const', const='vars',
-                             help='print what environment variables this package modifies')
+                             help='print the environment variables that this package modifies')
     info_parser.add_argument('--exe', '-e', dest='info_type',
                              action='store_const', const='exe',
                              help='get the path to a package executable')
     info_parser.add_argument('--version', dest='info_type',
                              action='store_const', const='version',
                              help='get the current version for a package')
-    info_parser.add_argument('--aliases', dest='aliases',
-                             action='store_true',
+    info_parser.add_argument('--aliases', dest='info_type',
+                             action='store_const', const='aliases',
                              help='list aliases for a package or a package version')
+    info_parser.add_argument('--dependents', dest='info_type',
+                             action='store_const', const='dependents',
+                             help='list dependents (sub-packages) of this package')
+    
     info_parser.set_defaults(func=get_info, info_type='vars')
 
     #--- aliases -----------

@@ -2,6 +2,9 @@
 
 [versions]
 1.0 =
+
+[subs]
+* = apps
 '''
 
 env.OS_TYPE = system()
@@ -40,5 +43,4 @@ if system() == 'Linux':
     env.PATH += '$LUMA_SOFT/linux/bin'
 elif system() == 'Windows':
     env.HOME = '$USERPROFILE'
-setpkg('apps')
 env.PYTHONPATH += '$SH_PATH/setpkg'

@@ -18,6 +18,13 @@ default-version = 2011
 2011.hotfix2 = 2011.02
 2011.hotfix3 = 2011.03
 
+[requires]
+2009* = python-2.5
+2011* = python-2.6
+
+[subs]
+2011* = mray-3.8.1, fume
+
 [system-aliases]
 2011 =
 2009 =
@@ -47,11 +54,11 @@ else:
     env.MAYA_LOCATION = 'C:/Autodesk/maya$MAYA_VERSION'
     env.XBMLANGPATH += '$LUMA_SOFT/maya/icons/%B'
 
-pythonver = {'2009' : '2.5',
-			 '2010' : '2.6',
-			 '2011' : '2.6'}[VERSION_PARTS[0]]
-
-setpkg('python-' + pythonver)
+#pythonver = {'2009' : '2.5',
+#			 '2010' : '2.6',
+#			 '2011' : '2.6'}[VERSION_PARTS[0]]
+#
+#setpkg('python-' + pythonver)
 
 env.PATH += '$MAYA_LOCATION/bin'
 env.PATH += pkgpath + '/bin'
@@ -69,5 +76,3 @@ env.MAYA_SCRIPT_PATH += pkgpath + '/mel'
 env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts'
 env.MAYA_FBXPRESET_PATH += pkgpath + '/fbxpresets'
 
-setpkg('mray-3.8.1')
-setpkg('fume')

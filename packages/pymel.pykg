@@ -1,6 +1,9 @@
 '''
 [versions]
 1.0 = 
+
+[requires]
+* = python
 '''
 
 repodir, VERSION = repodir(env, NAME, VERSION)

@@ -1,6 +1,13 @@
 '''
 [versions]
 1.0 = 
+
+[requires]
+* = python
+
+[subs]
+* = pymel
+
 '''
 env.PYTHONPATH += '$LUMA_SOFT/python/thirdParty'
 env.PATH += '$LUMA_SOFT/python/thirdParty/bin'
@@ -10,5 +17,4 @@ if isdev(env, NAME, VERSION):
 	env.PYTHONPATH += repopath + '/python/thirdParty'
 	env.PATH += repopath + '/python/thirdParty/bin'
 
-setpkg('pymel')
 

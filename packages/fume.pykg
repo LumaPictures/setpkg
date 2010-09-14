@@ -4,6 +4,9 @@ default-version = 2.0
 
 [versions]
 2.0 =
+
+[requires]
+* = python
 '''
 
 pkgpath, VERSION = packagedir(env, NAME, VERSION)
