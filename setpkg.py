@@ -110,7 +110,7 @@ is executed.
 """
 
 # TODO:
-# colorized output
+# colorized output (could be added to the logger?)
 # collect external variables expanded within a package and auto-reload when they change 
 # windows: use getpids.exe to get parent id to allow per-process setpkg'ing like on posix
 # windows: add --global flag to set environment globally (current behavior)
@@ -332,6 +332,31 @@ def prependenv(name, value, expand=True, no_dupes=False):
     #print "prepend", name, value
     return value
 
+def appendenv(name, value, expand=True, no_dupes=False):
+    if expand:
+        value = _expand(value, strip_quotes=True)
+
+    if name not in os.environ:
+        os.environ[name] = value
+    else:
+        current_value = os.environ[name]
+        parts = _split(current_value)
+        if no_dupes:
+            if expand:
+                expanded_parts = [_expand(x) for x in parts]
+            else:
+                expanded_parts = parts
+            if value not in expanded_parts:
+                parts.append(value)
+                new_value = _join(parts)
+                os.environ[name] = new_value
+        else:
+            parts.append(value)
+            new_value = _join(parts)
+            os.environ[name] = new_value
+    #print "prepend", name, value
+    return value
+
 def prependenvs(name, value):
     '''
     like prependenv, but in addition to setting single values, it also allows
@@ -447,6 +472,18 @@ class EnvironmentVariable(object):
         # update_pypath
         if self.name == 'PYTHONPATH':
             sys.path.insert(0, expanded_value)
+        return expanded_value
+
+    def append(self, value, **kwargs):
+        if isinstance(value, EnvironmentVariable):
+            value = value.value()
+        expanded_value = appendenv(self._name, value, **kwargs)
+        # track changes
+        self._environ[self._name].append(expanded_value)
+
+        # update_pypath
+        if self.name == 'PYTHONPATH':
+            sys.path.append(expanded_value)
         return expanded_value
 
     def set(self, value):
@@ -680,13 +717,6 @@ class BasePackage(object):
         return self.name + PKG_SEP + self.version
 
     @property
-    def origname(self):
-        if self.explicit_version:
-            return self.name + PKG_SEP + self.version
-        else:
-            return self.name
-
-    @property
     def explicit_version(self):
         '''
         True if this package explicitly requested a particular version or
@@ -695,7 +725,12 @@ class BasePackage(object):
         return bool(self._version)
 
     def get_dependencies(self):
-        return [PackageInterface(pkg) for pkg in _split(os.environ['SETPKG_DEPENDENCIES_%s' % self.name])]
+        var = 'SETPKG_DEPENDENCIES_%s' % self.name
+        val = os.environ.get(var, None)
+        if val:
+            return [PackageInterface(pkg) for pkg in _split(val)]
+        else:
+            return []
 
     def get_dependents(self):
         '''
@@ -716,13 +751,19 @@ class BasePackage(object):
             for subdepend in dependent.get_dependents():
                 yield subdepend
 
-    def requires_explicit_version(self, shortname):
+    def get_dependency_versions(self):
+        '''
+        return a dictionary mapping dependency shortnames to versions. version
+        will be None if no version was required
+        '''
         try:
-            map = dict([_splitname(pkg) \
-                for pkg in _split(os.environ['SETPKG_DEPENDENCIES_%s' % shortname])])
+            return dict([_splitname(pkg) \
+                for pkg in _split(os.environ['SETPKG_DEPENDENCIES_%s' % self.name])])
         except KeyError:
-            return False
-        return bool(map.get(self.name, False))
+            return {}
+
+    def required_version(self, package):
+        return PackageInterface(package).get_dependency_versions()[self.name]
   
     def __eq__(self, other):
         # use file instead?
@@ -733,11 +774,12 @@ class PackageInterface(BasePackage):
     Represents an active package
     '''
     def __init__(self, name):
+        self.origname = name
         self.name, self._version = _splitname(name)
         # TODO: assert version
 
     def __repr__(self):
-        return '%s(%r)' % (self.__class__.__name__, self.name)
+        return '%s(%r)' % (self.__class__.__name__, self.origname)
 
     def is_active(self):
         return VER_PREFIX + self.name in os.environ
@@ -796,6 +838,13 @@ class Package(BasePackage):
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.file, self.version)
+
+    @property
+    def origname(self):
+        if self.explicit_version:
+            return self.name + PKG_SEP + self.version
+        else:
+            return self.name
 
     def _read_packagelist(self, section):
         pkgs = []
@@ -942,22 +991,12 @@ class Package(BasePackage):
             yield self._parent
             for parent in self._parent.parents:
                 yield parent
-
-    def dependencies(self):
-        return self._dependencies
-
-    def dependents(self):
-        return self._dependents
-
-    def depend_on(self, package):
-        '''
-        add a package to this package's list of dependencies
-        '''
-        self._dependencies.append(package)
-        package._dependents.append(self)
     
     @propertycache
     def subpackages(self):
+        '''
+        read subpackages from the pykg [subs] section
+        '''
         return self._read_packagelist('subs')
 
     @property
@@ -1112,14 +1151,14 @@ class Session():
         for pkg in requirements:
             shortname, version = _splitname(pkg)
             var = getattr(g['env'], 'SETPKG_DEPENDENTS_%s' % (shortname,))
-            var.prepend(package.name, expand=False)
+            var.append(package.name, expand=False)
         
         # add our direct dependencies, using shortname
         var = getattr(g['env'], 'SETPKG_DEPENDENCIES_%s' % (package.name,))
         values = set(var.split())
         for pkg in requirements:
             if pkg not in values:
-                var.prepend(pkg, expand=False)
+                var.append(pkg, expand=False)
 
         # Execute the file!
 #        try:
@@ -1132,13 +1171,12 @@ class Session():
         #logger.debug('%s: execfile complete' % package.fullname)
          
         subpackages = load('subs', 'DEPENDENTS', package)
-        
-#        # add our direct dependencies, using requested name
+
+#        # not necessary:: we can get the list from [subs]
+#        # add our subpackages
 #        var = getattr(g['env'], 'SETPKG_SUBS_%s' % (package.name,))
 #        for pkg in subpackages:
 #            var.prepend(pkg, expand=False)
-
-
 
     def add_package(self, name, parent=None, force=False, depth=0):
         package = get_package(name)
@@ -1155,25 +1193,30 @@ class Session():
                 reloading = True
                 self._status('refreshing', package.fullname, '+', depth)
                 self.remove_package(curr.name, recurse=True, depth=depth, reloading=True)
+            # if a package of this type is already active and
+            # A) the version requested is the same OR
+            # B) a specific version was not requested
             elif not package.explicit_version or curr.version == package.version:
-                # a package of this type is already active and
-                # A) the version requested is the same OR
-                # B) a specific version was not requested
                 #self._status('keeping', curr.fullname, ' ', depth)
-
-#                if package not in curr.get_dependents():
-#                    curr.add_dependent(package)
-
-                return
+                # reload if incorrect version of dependencies are set
+                reloading = False
+                for pkg in package.get_dependencies():
+                    try:
+                        pkg.version
+                    except InvalidPackageVersion:
+                        reloading = True
+                        break
+                if reloading:
+                    self._status('reloading', package.fullname, '+', depth)
+                    self.remove_package(curr.name, depth=depth, reloading=True)
+                else:
+                    return
             else:
                 reloading = True
-                self._status('changing', 
-                             '%s-%s --> %s' % (shortname, curr.version, package.version)
+                self._status('switching', 
+                             '%s --> %s' % (curr.fullname, package.version)
                              , '+', depth)
-                self.remove_package(shortname, depth=depth, reloading=True)
-
-        if parent:
-            parent.depend_on(package)
+                self.remove_package(curr.name, depth=depth, reloading=True)
 
         if not reloading:
             self._status('adding', package.fullname, '+', depth)
@@ -1186,16 +1229,14 @@ class Session():
         self.shelf[package.name] = package
         
         if reloading:
-#            completed = []
-#            for dependent in package.walk_dependents():
-#                print dependent, package.requires_explicit_version(dependent.name), completed
-#                if dependent.name not in completed:
-#                    completed.append(dependent.name)
-#                    self.add_package(dependent.fullname, depth=depth+1, force=True)
-
             # if we just reloaded this package, also reload the dependents
             for dependent in package.get_dependents():
-                if not package.requires_explicit_version(dependent.name):
+                req_ver = package.required_version(dependent.name)
+                if req_ver:
+                    if req_ver != package.version:
+                        # TODO: prepend dependent's variables
+                        logger.warn('WARNING: %s requires %s' % (dependent.fullname, package.fullname))
+                else:
                     self.add_package(dependent.fullname, depth=depth+1, force=True)
         return package
 

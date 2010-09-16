@@ -11,7 +11,8 @@ default-version = 1.5.1
 1.3 =
 
 [requires]
-* = python
+1.6* = python-2.5
+1.5* = python
 '''
 
 repodir, VERSION = repodir(env, NAME, VERSION)

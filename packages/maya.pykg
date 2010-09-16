@@ -54,12 +54,6 @@ else:
     env.MAYA_LOCATION = 'C:/Autodesk/maya$MAYA_VERSION'
     env.XBMLANGPATH += '$LUMA_SOFT/maya/icons/%B'
 
-#pythonver = {'2009' : '2.5',
-#			 '2010' : '2.6',
-#			 '2011' : '2.6'}[VERSION_PARTS[0]]
-#
-#setpkg('python-' + pythonver)
-
 env.PATH += '$MAYA_LOCATION/bin'
 env.PATH += pkgpath + '/bin'
 env.PYTHONPATH += pkgpath + '/mel'
