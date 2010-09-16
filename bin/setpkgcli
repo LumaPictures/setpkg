@@ -203,8 +203,8 @@ def cli():
                        help='recursively unset dependencies of this package')
 
     if platform.system() == 'Windows':
-        set_parser.add_argument('-g', '--global', dest='set_global', action='store_true',
-                           help='unset environment for all sessions until system restart')
+        unset_parser.add_argument('-g', '--global', dest='set_global', action='store_true',
+                                  help='unset environment for all sessions until system restart')
 
     unset_parser.set_defaults(func=unset_packages)
 
