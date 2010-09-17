@@ -38,6 +38,8 @@ env.MAYA_VERSION_FULL = VERSION
 
 if system() == 'Windows':
 	env.MAYA_VERSION = '$MAYA_VERSION_NUM-x64'
+elif system() == 'Darwin':
+    env.MAYA_VERSION = '$MAYA_VERSION_FULL'
 else:
 	env.MAYA_VERSION = '$MAYA_VERSION_FULL-x64'
 
