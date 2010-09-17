@@ -291,7 +291,7 @@ class Bash(Shell):
     def alias(self, key, value):
         return "alias %s='%s';" % ( key, value)
 
-class Tsch(Shell):
+class Tcsh(Shell):
     def setenv(self, key, value):
         return "setenv %s %s;" % ( key, value )
     def unsetenv(self, key):
@@ -340,8 +340,9 @@ class WinShell(Shell):
 
 shells = { 'bash' : Bash,
            'sh'   : Bash,
-           'tcsh' : Tsch,
-           'csh'  : Tsch,
+           'tcsh' : Tcsh,
+           'csh'  : Tcsh,
+           '-csh' : Tcsh, # For some reason, inside of 'screen', ps -o args reports -csh...
            'DOS' : WinShell}
 
 def get_shell_name():

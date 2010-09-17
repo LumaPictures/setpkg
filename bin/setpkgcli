@@ -14,8 +14,8 @@ def _get_shell(shell, *args, **kwargs):
     try:
         cls = get_shell_class(shell)
         return cls(*args, **kwargs)
-    except KeyError:
-        logger.error('unknown shell: %s' % shell)
+    except KeyError, e:
+        logger.error('unknown shell: %s (%s)' % (shell, e.args[0]))
         sys.exit(1)
   
 def result(value):
