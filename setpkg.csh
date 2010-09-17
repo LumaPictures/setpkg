@@ -4,7 +4,7 @@
 #setenv PATH ${PATH}:`dirname $SETPKG_PATH`/bin
 set bin = `dirname $SETPKG_PATH`/bin
 
-alias pkg  'eval `$bin/setpkgcli --pid $$ \!*`'
+alias pkg  'eval `$bin/setpkgcli --shell tcsh --pid $$ \!*`'
 
 alias addenv    'pkg env prepend \!*'
 alias delenv    'pkg env pop \!*'

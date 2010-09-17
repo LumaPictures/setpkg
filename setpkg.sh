@@ -2,7 +2,7 @@
 bin=`dirname "$SETPKG_PATH"`/bin
 
 function pkg { 
-	eval `$bin/setpkgcli --pid $$ "$@"`
+	eval `$bin/setpkgcli --shell bash --pid $$ "$@"`
 }
 
 function setpkg { 
