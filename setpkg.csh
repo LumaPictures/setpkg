@@ -10,7 +10,7 @@ alias addenv    'pkg env prepend \!*'
 alias delenv    'pkg env pop \!*'
 alias setpkg    'pkg set \!*'
 alias unsetpkg  'pkg unset \!*'
-alias runpkg    'pkg set \!*; eval `pkg info --exe \!*`'
+alias runpkg    'pkg run \!*'
 
 # system aliases
 pkg system-alias

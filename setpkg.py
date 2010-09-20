@@ -95,9 +95,6 @@ is executed.
         used, but the logger provides log levels (error, warn, info, debug) and
         can also be configured to log to a file.
 
-    setpkg :
-        function for setting a sub-package dependency.
-
     platform module :
         the contents of the builtin `platform` module
         (equivalent of `from platform import *`)
@@ -111,7 +108,6 @@ is executed.
 
 # TODO:
 # colorized output (could be added to the logger?)
-# collect external variables expanded within a package and auto-reload when they change 
 # windows: use getpids.exe to get parent id to allow per-process setpkg'ing like on posix
 # windows: add --global flag to set environment globally (current behavior)
 
@@ -641,6 +637,9 @@ def _splitname(package_name):
     version = None if len(parts) == 1 else parts[1]
     return parts[0], version
 
+def _joinname(name, version):
+    return name + PKG_SEP + version
+
 def _hasversion(package_name):
     return len(package_name.split(PKG_SEP, 1)) == 2
 
@@ -712,10 +711,10 @@ def list_package_choices(package=None, versions=True, aliases=False):
         try:
             pkg = Package(package_file)
             for version in pkg.versions:
-                packages.append('%s-%s' % (pkg.name, version))
+                packages.append(_joinname(pkg.name, version))
             if aliases:
                 for alias in sorted(pkg.aliases):
-                    packages.append('%s-%s' % (pkg.name, alias))
+                    packages.append(_joinname(pkg.name, alias))
         except PackageError, err:
             pass
             #logger.error(str(err))
@@ -777,13 +776,13 @@ class FakePackage(object):
 
     @propertycache
     def hash(self):
-        return '%s-%s' % (self.name, self.version)
+        return _joinname(self.name, self.version)
 
 class BasePackage(object):
 
     @property
     def fullname(self):
-        return self.name + PKG_SEP + self.version
+        return _joinname(self.name, self.version)
 
     @property
     def explicit_version(self):
@@ -833,7 +832,10 @@ class BasePackage(object):
 
     def required_version(self, package):
         return PackageInterface(package).get_dependency_versions()[self.name]
-  
+
+    def is_active(self):
+        return VER_PREFIX + self.name in os.environ
+
     def __eq__(self, other):
         # use file instead?
         return (self.name, self.version) == (other.name, other.version)
@@ -849,9 +851,6 @@ class PackageInterface(BasePackage):
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.origname)
-
-    def is_active(self):
-        return VER_PREFIX + self.name in os.environ
 
     @propertycache
     def hash(self):
@@ -911,7 +910,7 @@ class Package(BasePackage):
     @property
     def origname(self):
         if self.explicit_version:
-            return self.name + PKG_SEP + self.version
+            return _joinname(self.name, self.version)
         else:
             return self.name
 
@@ -926,7 +925,7 @@ class Package(BasePackage):
   
     @property
     def fullname(self):
-        return self.name + PKG_SEP + self.version
+        return _joinname(self.name, self.version)
 
     @propertycache
     def version(self):
@@ -1014,6 +1013,20 @@ class Package(BasePackage):
         return {}
 
     @propertycache
+    def system_aliases(self):
+        '''
+        return a list of (alias, packagename) tuples
+        '''
+        result = []
+        if self.config.has_section('system-aliases'):
+            for alias_suffix, pkg_version in self.config.items('system-aliases'):
+                if not pkg_version:
+                    pkg_version = alias_suffix
+                result.append((self.name + alias_suffix, 
+                               _joinname(self.name, self.aliases.get(pkg_version, pkg_version))))
+        return result
+                    
+    @propertycache
     def version_parts(self):
         '''
         A tuple of version components determined by `version-regex` configuration
@@ -1068,6 +1081,9 @@ class Package(BasePackage):
         '''
         return self._read_packagelist('subs')
 
+    def get_dependencies(self):
+        return [ PackageInterface(pkg) for pkg in self._read_packagelist('requires')]
+        
     @property
     def environ(self):
         return dict(self._environ.__dict__['_environ'])
@@ -1273,6 +1289,7 @@ class Session():
                     try:
                         pkg.version
                     except InvalidPackageVersion:
+                        # error raised when package not active
                         reloading = True
                         break
                 if reloading:
@@ -1304,7 +1321,7 @@ class Session():
                 if req_ver:
                     if req_ver != package.version:
                         # TODO: prepend dependent's variables
-                        logger.warn('WARNING: %s requires %s' % (dependent.fullname, package.fullname))
+                        logger.warn('WARNING: %s requires %s' % (dependent.fullname, _joinname(package.name, req_ver)))
                 else:
                     self.add_package(dependent.fullname, depth=depth+1, force=True)
         return package
@@ -1382,8 +1399,9 @@ def list_active_packages(package=None, pid=None):
     versions = current_versions()
     if package:
         if package in versions:
-            return ['%s-%s' % (package, versions[package])]
+            return [_joinname(package, versions[package])]
         else:
             print "package %s is not currently active" % package
+            return []
     else:
-        return ['%s-%s' % (pkg, versions[pkg]) for pkg in sorted(versions.keys())]
+        return [_joinname(pkg, versions[pkg]) for pkg in sorted(versions.keys())]

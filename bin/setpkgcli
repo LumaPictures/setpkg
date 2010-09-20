@@ -10,6 +10,24 @@ from setpkg import _splitname
 import pprint
 import argparse
 
+# start and stop parameters for effects
+_effects = {'none': 0, 'black': 30, 'red': 31, 'green': 32, 'yellow': 33,
+            'blue': 34, 'magenta': 35, 'cyan': 36, 'white': 37, 'bold': 1,
+            'italic': 3, 'underline': 4, 'inverse': 7,
+            'black_background': 40, 'red_background': 41,
+            'green_background': 42, 'yellow_background': 43,
+            'blue_background': 44, 'purple_background': 45,
+            'cyan_background': 46, 'white_background': 47}
+
+def render_effects(text, effects):
+    'Wrap text in commands to turn on each effect.'
+    if not text:
+        return text
+    start = [str(_effects[e]) for e in ['none'] + effects.split()]
+    start = '\033[' + ';'.join(start) + 'm'
+    stop = '\033[' + str(_effects['none']) + 'm'
+    return ''.join([start, text, stop])
+
 def _get_shell(shell, *args, **kwargs):
     try:
         cls = get_shell_class(shell)
@@ -18,21 +36,26 @@ def _get_shell(shell, *args, **kwargs):
         logger.error('unknown shell: %s (%s)' % (shell, e.args[0]))
         sys.exit(1)
   
-def result(value):
+def command(value):
     sys.__stdout__.write(value + '\n')
 
 # TODO: move this to the Shell class
+def error(value):
+    sys.__stderr__.write('%s\n' % value)
+
+# using this kills whitespace formatting!
 def status(value):
-    sys.__stdout__.write('echo %s;\n' % value)
+    sys.__stdout__.write('echo "%s";\n' % value)
+
 
 def list_packages(args):
-    if args.active:
-        for pkg in list_active_packages(args.packages, args.pid):
-            status(pkg)
-    else:
+    if args.all:
         for pkg in list_package_choices(args.packages,
                                               versions=not args.base,
                                               aliases=args.aliases):
+            status(pkg)
+    else:
+        for pkg in list_active_packages(args.packages, args.pid):
             status(pkg)
 
 def doit(func, args):
@@ -55,7 +78,7 @@ def doit(func, args):
             cmd = shell.setenv(var, os.environ[var])
         else:
             cmd = shell.unsetenv(var)
-        result(cmd)
+        command(cmd)
         logger.debug(cmd)
 
 def set_packages(args):
@@ -80,43 +103,95 @@ def unset_packages(args):
         return sorted(changed)
     doit(f, args)
 
-def get_info(args):
+def run_package(args):
+    args.packages = args.package
+    args.reload = False
+    set_packages(args)
+    package = get_package(args.package[0])
+    command(package.executable)
+
+def info(args):
     shortname, version = _splitname(args.package[0])
-    if args.info_type == 'exe':
-        package = get_package(args.package[0])
-        status(package.executable)
-        return
-
-    elif args.info_type == 'aliases':
-        package = get_package(args.package[0])
-        if version:
-            # resolve alias to real version
-            version = package.aliases.get(version, version)
-            aliases = dict([(a, v) for a,v in package.aliases.items() if v==version])
-        else:
-            aliases = package.aliases
-        width = max(*[len(alias) for alias in sorted(aliases)])
-        
-        for alias in sorted(aliases): 
-            status(alias.ljust(width + 10) + aliases[alias])
-        return
-
-    # info that operates on active packages only
-    # FIXME: should we split this into another command?
     curr_version = current_version(shortname)
     if curr_version is None:
-        print "package is not currently set"
-        return
+        package = get_package(args.package[0])
+    else:
+        session = Session(pid=args.pid)
+        package = session.shelf[shortname]
 
-    session = Session(pid=args.pid)
-    package = session.shelf[shortname]
-    if args.info_type == 'vars':
-        pprint.pprint({'vars': package.environ,
-                       'version': current_version(shortname),
-                       }[args.info_type])
-    elif args.info_type == 'dependents':
-        for pkg, explicit_version in package.get_dependents(): 
-            status(pkg)
+    def detail(section, *data, **colors):
+        section_color = colors.get('section_color', 'cyan')
+        value_color = colors.get('value_color', None)
+        widths = (20, 30, 20)
+        if section:
+            section += ':'
+        line = ''
+        for d, w in zip(data, widths[1:]):
+            d = d.ljust(w)
+            if value_color:
+                d = render_effects(d, value_color)
+            line += d
+        # user error to avoid removing whitespace formatting
+        error(render_effects(section.ljust(widths[0]), section_color) + line)
+    
+    def table(section, labels, columns):
+        detail(section, value_color='blue', *['[%s]' % label for label in labels])
+        for data in columns:
+            detail('', *data)
+        status('')
+
+    detail('name', package.name)
+    detail('executable', package.executable)
+    detail('versions', ', '.join(sorted(package.versions)))
+    detail('subpackages', ', '.join(package.subpackages))
+    detail('dependencies', ', '.join([pkg.origname for pkg in package.get_dependencies()]))
+    
+    if curr_version:
+        detail('dependents', ', '.join([pkg.origname for pkg in package.get_dependents()]))
+    else:
+        detail('dependents', '<inactive>', value_color='red')
+
+    if curr_version:
+        detail('active version', curr_version)
+    else:
+        detail('active_version', '<inactive>', value_color='red')
+    status('')
+    
+    sys_aliases = package.system_aliases
+    if sys_aliases:
+        table('run commands',
+              ['command', 'action'],
+              [(sys_alias, 'runpkg %s' % pkgname) for sys_alias, pkgname in sys_aliases])
+    else:
+        detail('aliases', '<none>')
+        status('')
+
+    if version:
+        # resolve alias to real version
+        version = package.aliases.get(version, version)
+        aliases = dict([(a, v) for a,v in package.aliases.items() if v==version])
+    else:
+        aliases = package.aliases
+
+    if aliases:
+        table('package aliases',
+              ['alias', 'package'],
+              [(alias, aliases[alias]) for alias in sorted(aliases)])
+    
+    if curr_version:
+
+        vals = []
+        for var in sorted(package.environ):
+            if not var.startswith('SETPKG_'):
+                val_list = package.environ[var]
+                vals.append((var, val_list[0]))
+                for val in val_list[1:]:
+                    vals.append(('', val))
+        table('variables',
+              ['variable', 'values'],
+              vals)
+    else:
+        detail('variables', '<inactive>', value_color='red')
 
 def alias(args):
     package_files = sorted(walk_package_files())
@@ -124,11 +199,8 @@ def alias(args):
     for package_file in package_files:
         try:
             pkg = Package(package_file)
-            if pkg.config.has_section('system-aliases'):
-                for alias_suffix, pkg_version in pkg.config.items('system-aliases'):
-                    if not pkg_version:
-                        pkg_version = alias_suffix
-                    result(shell.alias(pkg.name + alias_suffix, 'runpkg %s-%s' % (pkg.name, pkg_version)))
+            for sys_alias, pkgname in pkg.system_aliases:
+                command(shell.alias(sys_alias, 'runpkg %s' % pkgname))
         except PackageError, err:
             pass
 
@@ -158,7 +230,7 @@ def env(args):
         cmd = shell.unsetenv(var)
     else:
         raise
-    result(cmd)
+    command(cmd)
      
 def cli():
     logger.debug(str(sys.argv))
@@ -214,8 +286,8 @@ def cli():
     list_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='?',
                            help='packages to add or remove')
 
-    list_parser.add_argument('--active', dest='active', action='store_true',
-                       help='list packages that are currently active')
+    list_parser.add_argument('--all', dest='all', action='store_true',
+                       help='list all packages')
 
     list_parser.add_argument('--base', '-b', dest='base', action='store_true',
                        help='list only base packages without version')
@@ -225,27 +297,17 @@ def cli():
 
     list_parser.set_defaults(func=list_packages)
 
+    #--- run -----------
+    run_parser = subparsers.add_parser('run', help='run a package')
+    run_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
+                             help='package to run')
+    run_parser.set_defaults(func=run_package)
+
     #--- info -----------
-    info_parser = subparsers.add_parser('info', help='get information about a package; if no options are provided, --vars is assumed')
+    info_parser = subparsers.add_parser('info', help='get information about a package')
     info_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
                              help='package to query')
-    info_parser.add_argument('--vars', '-v', dest='info_type',
-                             action='store_const', const='vars',
-                             help='print the environment variables that this package modifies')
-    info_parser.add_argument('--exe', '-e', dest='info_type',
-                             action='store_const', const='exe',
-                             help='get the path to a package executable')
-    info_parser.add_argument('--version', dest='info_type',
-                             action='store_const', const='version',
-                             help='get the current version for a package')
-    info_parser.add_argument('--aliases', dest='info_type',
-                             action='store_const', const='aliases',
-                             help='list aliases for a package or a package version')
-    info_parser.add_argument('--dependents', dest='info_type',
-                             action='store_const', const='dependents',
-                             help='list dependents (sub-packages) of this package')
-    
-    info_parser.set_defaults(func=get_info, info_type='vars')
+    info_parser.set_defaults(func=info)
 
     #--- aliases -----------
     alias_parser = subparsers.add_parser('system-alias', help='create system aliases for the current shell')
@@ -276,7 +338,7 @@ def cli():
 
 
 try:
-    # only results can go to stdout, so pipe all print statements to stderr
+    # only result can go to stdout, so pipe all print statements to stderr
     sys.stdout = sys.stderr
     cli()
 finally:
