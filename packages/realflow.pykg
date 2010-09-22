@@ -1,6 +1,6 @@
 '''
 [main]
-version-regex = (\d+)\.(\d+)\.(\d{4})
+version-regex = (\d+)\.(\d+)\.(\d+)\.(\d{4})
 default-version = 4.3.8.0124
 
 [versions]
