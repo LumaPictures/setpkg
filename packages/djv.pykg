@@ -1,6 +1,6 @@
 '''
 [main]
-default-version = 0.8.2.p17
+default-version = 0.8.3.p2
 
 [versions]
 0.8.3.p2 =
@@ -16,7 +16,7 @@ if env.OS_TYPE == 'Darwin':
     env.DJV_PATH = '/Applications/djv-%s.app/Contents/Resources' % VERSION
 else:
     env.DJV_PATH = '/usr/local/djv-%s' % VERSION
-    # is this still necessary?
+    # is this still necessary?  
     #env.LUMA_LD_LIBRARY_PATH += '$DJV_PATH/lib'
     #env.LUMA_LD_LIBRARY_PATH += '$DJV_PATH/lib/libquicktime'
 env.LD_LIBRARY_PATH += '$DJV_PATH/lib/libquicktime'
