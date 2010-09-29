@@ -23,6 +23,7 @@ env.PY_VERSIONED = '$LUMA_SOFT/py_versioned/$PYTHON_VER'
 
 env.PYTHONPATH += '$HOME/python'
 env.PYTHONPATH += pkgpath + '/packages'
+env.PYTHONPATH += pkgpath + '/tests'
 env.PYTHONPATH += '$LUMA_SOFT/python/packages/compiled/$PYTHON_VER/$OS_TYPE-$ARCH/'
 env.QTDIR = '/usr/local/Trolltech/Qt'
 env.PATH += '$QTDIR/bin'
