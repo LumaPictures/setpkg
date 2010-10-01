@@ -15,7 +15,7 @@ if env.MAYA_VERSION_NUM:
     env.MAYA_MODULE_PATH += mtoadir
     env.MAYA_RENDER_DESC_PATH += mtoadir
     env.MTOA_PLUGINS_PATH = '%s/plug-ins' % mtoadir
-    env.LD_LIBRARY_PATH += '/usr/local/solidAngle/arnold-%s/bin' % VERSION
-    #env.LD_LIBRARY_PATH += '%s/lib' % mtoadir
+    #env.LD_LIBRARY_PATH += '/usr/local/solidAngle/arnold-%s/bin' % VERSION
+    env.LD_LIBRARY_PATH += '%s/lib' % mtoadir
 else:
     env.LD_LIBRARY_PATH += '/usr/local/solidAngle/arnold-%s/bin' % VERSION

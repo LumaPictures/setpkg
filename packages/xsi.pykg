@@ -1,0 +1,15 @@
+'''
+[main]
+version-regex = (\d{4})(?:\.(\d{2}))?
+default-version = 2011
+
+[versions]
+2011 =
+
+[system-aliases]
+2011 =
+
+'''
+
+env.PATH += '/usr/Softimage/Softimage_%s_SP1/Application/bin/' % VERSION
+env.LD_LIBRARY_PATH += '/usr/local/solidAngle/arnold-%s/bin' % VERSION
