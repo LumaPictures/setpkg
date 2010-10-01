@@ -30,4 +30,7 @@ env.MI_RAY_INCPATH += repopath + '/mentalRay/published/mi$RAY_VERSION/$OS_ARCH/i
 env.MI_CUSTOM_SHADER_PATH += '$MI_RAY_INCPATH'
 env.MI_LIBRARY_PATH += repopath + '/mentalRay/published/mi$RAY_VERSION/$OS_ARCH/lib'
 env.PATH += '/usr/local/mi$RAY_VERSION/bin'
-env.SPM_HOST = 'sv-lichost2'
+if VERSION_PARTS < (3,9):
+    env.SPM_HOST = 'sv-lichost2'
+else:
+    env.SPM_HOST = 'sv-lic8'
