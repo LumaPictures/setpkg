@@ -1,7 +1,7 @@
 '''
 [main]
 executable-path = ray
-version-regex = (\d+)\.(\d+)\.(\d+)
+version-regex = (\d+)\.(\d+)\.(\d+)(?:\.(\d+))?
 default-version = 3.8.1
 
 [aliases]
@@ -23,6 +23,7 @@ env.RAY_VERSION = VERSION
 env.RAY_VERSION_MAJOR = VERSION_PARTS[0]
 env.RAY_VERSION_MINOR = VERSION_PARTS[1]
 env.RAY_VERSION_REVISION = VERSION_PARTS[2]
+env.RAY_VERSION_MINOR_REVISION = VERSION_PARTS[3]
 
 #env.MI_ROOT = '/usr/local/mi$RAY_VERSION'
 env.MI_RAY_INCPATH += repopath + '/mentalRay/published/mi$RAY_VERSION/$OS_ARCH/include'
