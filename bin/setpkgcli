@@ -10,6 +10,28 @@ from setpkg import _splitname
 import pprint
 import argparse
 
+#===============================================================================
+# Formatter which prints some more information with the usage, for people
+# used the old behavior of 'setpkg'
+#===============================================================================
+class ExtraUsageInfoFormatter(argparse.HelpFormatter):
+    # Subclass and set this to something informative, and it will be appended
+    # the usage string...
+    extra_usage = ''''''
+    
+    def _format_usage(self, *args, **kwargs):
+        return super(ExtraUsageInfoFormatter, self)._format_usage(*args, **kwargs) + self.extra_usage
+        
+class PkgHelpFormatter(ExtraUsageInfoFormatter):
+    extra_usage = '''
+For a list of all available packages: pkg ls --all
+For a list of all currently set:      pkg ls --all
+For help setting packages:            pkg set -h / setpkg -h
+For help with other package commands: pkg -h
+'''
+   
+
+
 # start and stop parameters for effects
 _effects = {'none': 0, 'black': 30, 'red': 31, 'green': 32, 'yellow': 33,
             'blue': 34, 'magenta': 35, 'cyan': 36, 'white': 37, 'bold': 1,
@@ -239,14 +261,14 @@ def cli():
         prog='pkg',
         usage='%(prog)s [options]',
         description='Manage environment variables for a software package.')
-
+    
     parser.add_argument('--pid', metavar='PID', type=str, nargs='?',
                        help='current process id (usually stored in $$)')
 
     parser.add_argument('--shell', metavar='SHELL', type=str, nargs='?',
                        help='the shell from which this is run. (options are %s)' % ', '.join(shells.keys()))
 
-    subparsers = parser.add_subparsers(help='actions to perform')
+    subparsers = parser.add_subparsers(help='actions to perform', dest='subparser')
     #--- set -----------
     set_parser = subparsers.add_parser('set', help='add packages')
 
@@ -261,6 +283,7 @@ def cli():
                            help='set environment for all sessions until system restart')
 
     set_parser.set_defaults(func=set_packages)
+    set_parser.formatter_class = PkgHelpFormatter
 
     #--- unset -----------
     unset_parser = subparsers.add_parser('unset', help='remove packages')
@@ -329,6 +352,7 @@ def cli():
         parser.print_help(sys.stderr)
         parser.exit()
     parser._registry_get('action', 'help').__call__ = __call__
+    parser.formatter_class = PkgHelpFormatter
 
     args = parser.parse_args()
 
