@@ -10,6 +10,8 @@ default-version = 6.0
 5.2 = 5.2v3
 
 [versions]
+6.1v2 =
+6.1v1 =
 6.0v6 =
 6.0v3 =
 6.0v2 =
