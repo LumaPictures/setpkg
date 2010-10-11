@@ -1145,7 +1145,7 @@ class Session():
                 logger.info('copying cache from %s to %s' % (old_filename, filename))
                 # depending on the underlying database type used by shelve,
                 # the file may actually be several files
-                for suffix in ['', '.bak', '.dat', '.dir']:
+                for suffix in ['', '.bak', '.dat', '.dir', '.db']:
                     if os.path.exists(old_filename + suffix):
                         shutil.copy(old_filename + suffix, filename + suffix)
                 pkg = FakePackage('setpkg', version='2.0')
