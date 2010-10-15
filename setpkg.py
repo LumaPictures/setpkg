@@ -146,7 +146,7 @@ LOG_LVL_VAR = 'SETPKG_LOG_LEVEL'
 
 import logging
 logger = logging.getLogger("setpkg")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 ## create file handler which logs even debug messages
 #fh = logging.FileHandler("/var/tmp/setpkg.log")
@@ -716,8 +716,7 @@ def list_package_choices(package=None, versions=True, aliases=False):
                 for alias in sorted(pkg.aliases):
                     packages.append(_joinname(pkg.name, alias))
         except PackageError, err:
-            pass
-            #logger.error(str(err))
+            logger.debug(str(err))
     return packages
 
 def get_package(name):
@@ -953,12 +952,25 @@ class Package(BasePackage):
         '''
         read the header of a package file into a python ConfigParser
         '''
-        lines = _parse_header(self.file)
-        text = '\n'.join(lines)
         config = ConfigParser()
-        config.readfp(StringIO(text))
-#        if not config.has_section('main'):
-#            raise PackageError(self.name, 'no [main] section in package header')
+        try:
+            lines = _parse_header(self.file)
+            text = '\n'.join(lines)
+            config.readfp(StringIO(text))
+    #        if not config.has_section('main'):
+    #            raise PackageError(self.name, 'no [main] section in package header')
+        except Exception, e:
+            try:
+                selfStr = str(self)
+            except Exception:
+                selfStr = '<unknown package>'
+            try:
+                exceptionMsg = str(e)
+            except Exception:
+                exceptionMsg = '<unknown error>'
+            logger.error('Error reading config for package %s: %s' % (selfStr, exceptionMsg))
+            import traceback
+            logger.debug(traceback.format_exc())
         return config
 
     @propertycache

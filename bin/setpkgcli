@@ -226,6 +226,10 @@ def alias(args):
                 command(shell.alias(sys_alias, 'runpkg %s' % pkgname))
         except PackageError, err:
             pass
+        except Exception:
+            logger.error('Unknown error reading aliases for package %s:' % package_file)
+            import traceback
+            logger.error(traceback.format_exc())
 
 def env(args):
     shell = _get_shell(args.shell)
