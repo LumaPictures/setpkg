@@ -985,13 +985,15 @@ class Package(BasePackage):
             raise PackageError(self.name, 'no [versions] section in package header')
         valid = []
         for version in versions:
-            if self.VERSION_RE.match(version):
-                valid.append(version)
+            match = self.VERSION_RE.match(version)
+            if match:
+                # add a tuple with the version_parts, for sorting
+                valid.append( (match.groups(), version) )
             else:
                 logger.warn( "version in package file is invalidly formatted: %r\n" % version )
         if not valid:
             raise PackageError(self.name, "No valid versions were found")
-        return valid
+        return [version for parts, version in sorted(valid)]
 
     @propertycache
     def aliases(self):

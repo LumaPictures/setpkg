@@ -25,7 +25,7 @@ class ExtraUsageInfoFormatter(argparse.HelpFormatter):
 class PkgHelpFormatter(ExtraUsageInfoFormatter):
     extra_usage = '''
 For a list of all available packages: pkg ls --all
-For a list of all currently set:      pkg ls --all
+For a list of all currently set:      pkg ls
 For help setting packages:            pkg set -h / setpkg -h
 For help with other package commands: pkg -h
 ------------------------------------------------------------
