@@ -1,6 +1,6 @@
 '''
 [main]
-default-version = 3.10.6
+default-version = 3.8.6
 
 [versions]
 3.8.6 =
