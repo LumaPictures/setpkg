@@ -1,6 +1,10 @@
+[main]
+default-version = 6.1
+
 '''
 [versions]
 3.8.6 =
+3.10.6 =
 '''
 
 pkgpath, VERSION = packagedir(env, NAME, VERSION)
