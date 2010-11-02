@@ -10,6 +10,8 @@ default-version = 2.5
 [subs]
 * = pyexternal
 
+[requires]
+* = lumaTools
 '''
 
 pkgpath, VERSION = packagedir(env, NAME, VERSION)
