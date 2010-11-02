@@ -31,16 +31,45 @@ _pkg()
             return 0
             ;;
         unset)
-	    local active_packages=`pkg ls`
-	    COMPREPLY=( $(compgen -W "${active_packages}" -- ${cur}) )
+        local active_packages=`pkg ls`
+        COMPREPLY=( $(compgen -W "${active_packages}" -- ${cur}) )
             return 0
             ;;
         *)
         ;;
     esac
 
-   COMPREPLY=($(compgen -W "${opts}" -- ${cur}))  
-   return 0
+    COMPREPLY=($(compgen -W "${opts}" -- ${cur}))  
+    return 0
 }
 
 complete -F _pkg pkg
+
+_setpkg() 
+{
+    local cur packages
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    COMPREPLY=()
+
+    packages=`pkg ls --all --aliases`
+    COMPREPLY=( $(compgen -W "${packages}" -- ${cur}) )
+
+    return 0
+}
+
+complete -F _setpkg setpkg
+
+_unsetpkg() 
+{
+    local cur packages
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    COMPREPLY=()
+
+    packages=`pkg ls`
+    COMPREPLY=( $(compgen -W "${packages}" -- ${cur}) )
+
+    return 0
+}
+
+complete -F _unsetpkg unsetpkg
+
