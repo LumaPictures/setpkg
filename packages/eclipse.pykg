@@ -1,0 +1,22 @@
+'''
+[main]
+default-version = 3.6
+
+[versions]
+3.5 =
+3.6 = 
+
+[requires]
+* = python, mercurial
+'''
+
+# djv paths need to be made to match their version or we'll have a lot of nastiness here
+if env.OS_TYPE == 'Darwin':
+    env.ECLIPSE_PATH = '/Applications/eclipse%s' % VERSION
+else:
+    env.ECLIPSE_PATH = '/usr/local/eclipse%s' % VERSION
+
+env.LD_LIBRARY_PATH += '$DJV_PATH/lib/libquicktime'
+env.LD_LIBRARY_PATH += '$DJV_PATH/lib'
+env.PATH += '$ECLIPSE_PATH'
+
