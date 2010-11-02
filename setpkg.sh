@@ -1,9 +1,10 @@
 
-bin=`dirname "$SETPKG_PATH"`/bin
-
 function pkg { 
+    bin=`dirname "$SETPKG_PATH"`/bin
 	eval `$bin/setpkgcli --shell bash --pid $$ "$@"`
 }
+
+export -f pkg
 
 alias setpkg='pkg set'
 alias unsetpkg='pkg unset'
