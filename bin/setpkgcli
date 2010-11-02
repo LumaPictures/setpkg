@@ -131,7 +131,10 @@ def run_package(args):
     args.reload = False
     set_packages(args)
     package = get_package(args.package[0])
-    command(package.executable)
+    runcmd = [package.executable]
+    if args.runargs:
+        runcmd.extend(args.runargs)
+    command(' '.join(runcmd))
 
 def info(args):
     shortname, version = _splitname(args.package[0])
@@ -328,6 +331,15 @@ def cli():
     #--- run -----------
     run_parser = subparsers.add_parser('run', help='run a package')
     run_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
+                             help='package to run')
+    # by setting no prefix_chars, all args are interepreted as positional,
+    # and are caught by runargs, so that if you do:
+    #   pkg run myPackage -myFlag
+    # it will run
+    #   myPackage -myFlag
+    # ...instead of trying to interpret myFlag as a flag for pkg
+    run_parser.prefix_chars=''
+    run_parser.add_argument('runargs', type=str, nargs='*',
                              help='package to run')
     run_parser.set_defaults(func=run_package)
 
