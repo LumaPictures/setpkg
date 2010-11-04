@@ -1,17 +1,41 @@
+# Bash aliases are not inherited, unlike tcsh aliases; so make them functions
+# and export with export -f
 
 function pkg { 
     bin=`dirname "$SETPKG_PATH"`/bin
 	eval `$bin/setpkgcli --shell bash --pid $$ "$@"`
 }
-
 export -f pkg
 
-alias setpkg='pkg set'
-alias unsetpkg='pkg unset'
-alias runpkg='pkg run'
-alias pkgs='pkg ls'
-alias addenv='pkg env prepend'
-alias delevn='pkg env pop'
+function setpkg {
+    pkg set "$@"
+}
+export -f setpkg
+
+function unsetpkg {
+    pkg unset "$@"
+}
+export -f unsetpkg
+
+function runpkg {
+    pkg run "$@"
+}
+export -f runpkg
+
+function pkgs {
+    pkg ls "$@"
+}
+export -f pkgs
+
+function addenv {
+    pkg env prepend "$@"
+}
+export -f addenv
+
+function delevn {
+    pkg env pop "$@"
+}
+export -f delevn
 
 # system aliases
 pkg system-alias
