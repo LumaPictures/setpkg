@@ -489,6 +489,9 @@ class Environment(object):
                 raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
         return EnvironmentVariable(attr, self.__dict__['_environ'])
 
+    # There's some code duplication between Environment.__setattr__ and
+    # EnvironmentVariable.set... going to leave it as is, assuming it's
+    # duplicated for speed reasons... just remember to edit both places
     def __setattr__(self, attr, value):
         if isinstance(value, EnvironmentVariable):
             if value.name == attr:
@@ -499,9 +502,13 @@ class Environment(object):
         else:
             value = str(value)
         self.__dict__['_environ'][attr] = [setenv(attr, value)]
+        
+    def __contains__(self, attr):
+        return attr in os.environ
 
     def __str__(self):
         return pprint.pformat(dict(os.environ))
+        
 
 class EnvironmentVariable(object):
     '''
@@ -551,6 +558,9 @@ class EnvironmentVariable(object):
             sys.path.append(expanded_value)
         return expanded_value
 
+    # There's some code duplication between Environment.__setattr__ and
+    # EnvironmentVariable.set... going to leave it as is, assuming it's
+    # duplicated for speed reasons... just remember to edit both places
     def set(self, value):
         if isinstance(value, EnvironmentVariable):
             value = value.value()
