@@ -6,6 +6,8 @@ default-version = 3.8.6
 3.8.6 =
 3.10.6 =
 
+[requires]
+* = lumaTools
 '''
 
 pkgpath, VERSION = packagedir(env, NAME, VERSION)
