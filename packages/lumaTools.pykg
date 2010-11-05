@@ -9,11 +9,31 @@ env.OS_TYPE = system()
 env.ARCH = machine()
 env.OS_ARCH = '%s-%s' % (system(), machine())
 
-if system() == 'Windows':
-    env.LUMA_ROOT = 'Z:/Volumes/luma'
-else:
-    env.LUMA_ROOT = '/Volumes/luma'
-env.LUMA_SOFT = '$LUMA_ROOT/_globalSoft'
+#------------------------------------------------------------------------------ 
+# These should now be set from luma.sh/csh
+# ...but, for transition reasons, check here if they're not, and set them
+if not env.LUMA_ROOT:
+    if system() == 'Windows':
+        env.LUMA_ROOT = 'Z:/Volumes/luma'
+    else:
+        env.LUMA_ROOT = '/Volumes/luma'
+
+if not env.LUMA_SOFT:
+    env.LUMA_SOFT = '$LUMA_ROOT/_globalSoft'
+
+if not env.USER_DEV:
+    # DEV_ROOT overrides all others
+    if env.DEV_ROOT:
+        env.USER_DEV = '$DEV_ROOT/$USER'
+    else:
+        env.DEV_LOCAL = '/lumalocal/dev/$USER'
+        env.DEV_SERVER = '$LUMA_SOFT/dev/$USER'
+        if env.DEV_MODE == 'local':
+            env.USER_DEV = env.DEV_LOCAL
+        else:
+            env.USER_DEV = env.DEV_SERVER
+#------------------------------------------------------------------------------
+
 env.PATH += '$LUMA_SOFT/csh'
 env.PATH += '$LUMA_SOFT/csh/gnome'
 env.PATH += '$LUMA_SOFT/perl'
@@ -21,17 +41,6 @@ env.PATH += '$HOME/bin'
 #env PATH /usr/local/lumaGit-1.6.2/bin
 env.PATH += '/usr/local/mysql/bin'
 env.PATH += '/usr/local/bin'
-
-# DEV_ROOT overrides all others
-if env.DEV_ROOT:
-    env.USER_DEV = '$DEV_ROOT/$USER'
-else:
-    env.DEV_LOCAL = '/lumalocal/dev/$USER'
-    env.DEV_SERVER = '$LUMA_SOFT/dev/$USER'
-    if env.DEV_MODE == 'local':
-        env.USER_DEV = env.DEV_LOCAL
-    else:
-        env.USER_DEV = env.DEV_SERVER
 
 env.LD_LIBRARY_PATH += '$LUMA_SOFT/lib/$OS_ARCH'
 # is this still necessary?... yes
