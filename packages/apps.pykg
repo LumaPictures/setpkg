@@ -3,7 +3,7 @@
 1.0 =
 
 [requires]
-* = python
+* = python, lumaTools
 ''' 
 pkgpath, VERSION = packagedir(env, NAME, VERSION)
 
