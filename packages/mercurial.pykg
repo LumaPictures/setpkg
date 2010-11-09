@@ -33,4 +33,5 @@ env.HGRCPATH += '$LUMA_HGRCPATH/luma.rc'
 env.HGDIR = repodir + '/python/packages/compiled/$PYTHON_VER/$OS_TYPE-$ARCH/mercurial-$HG_VERSION'
 env.PATH += '$HGDIR'
 env.PYTHONPATH += '$HGDIR'
-
+env.PYTHONPATH += repodir + '/python/thirdParty/hg-git'
+env.PYTHONPATH += repodir + '/python/thirdParty/hgsubversion'

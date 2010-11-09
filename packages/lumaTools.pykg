@@ -50,6 +50,5 @@ if system() == 'Linux':
     env.PATH += '$LUMA_SOFT/linux/bin'
 elif system() == 'Windows':
     env.HOME = '$USERPROFILE'
-env.PYTHONPATH += '$SH_PATH/setpkg'
 
 env.LUMA_LOG_DIR = '$LUMA_ROOT/_globalAssets/production/logs'

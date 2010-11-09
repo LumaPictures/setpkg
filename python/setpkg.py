@@ -3,17 +3,9 @@ An environment variable management system written in python.  The system is
 based around .pykg files: python scripts executed in a special environment and
 containing python ini-style configuration headers.
 
-Managing Packages
-=================
-
-When setting a package, it will be skipped if:
-    - a specific version is not requested and a version of the package is already set
-    - the requested version is already set
-
-
-
+==================================
 pykg files
-==========
+==================================
 
 Typically, a single .pykg file is written for each application to be managed,
 and placed on the SETPKG_PATH. When adding a package using the setpkg module or
@@ -21,8 +13,64 @@ command line tool, if the requested version of the package has not yet already
 been set, the .pykg file is executed. Differences per OS, architecture, application
 version, etc, are handled by code inside the pykg file.
 
-Configuration Header
---------------------
+----------------------------------
+Configuration Header Sections
+----------------------------------
+
+main
+====
+
+Used to set global options
+
+**executable-path**
+    name of the executable for the package, used by `pkg run`
+
+**version-regex**
+    validates the version and splits it into components provided as VERSION_PARTS (see below)
+
+**default-version**
+    the version used when no version is specified
+
+example main section::
+
+    [main]
+    executable-path = Nuke
+    version-regex = (\d+)\.(\d+)v(\d+)
+    default-version = 6.0v6
+
+requires
+========
+
+Requirements are loaded before this current package is loaded. 
+
+If a specific version of a package is given as a requirement
+and a different version of the package is already loaded, it (and all of its
+dependencies) will be reloaded with the new version.  If no version is specified,
+and the package is already loaded, it will be used as is, otherwise the default
+version will be loaded.
+
+The left side of each requires statement is a unix-style glob pattern for specifying
+which versions of the current package to associate with the requirement on the
+right side::
+
+    [requires]
+    6.* = python-2.5
+    5.* = python-2.5
+
+subs
+====
+
+Subpackages are loaded after the current package is loaded.
+
+The left side of each requires statement is a unix-style glob pattern for specifying
+which versions of the current package to associate with the requirement on the
+right side::
+
+    [subs]
+    * = djv
+
+versions
+========
 
 To be valid, a pykg file needs a module-level docstring with, at minimum, a [versions]
 section listing the valid versions for this application::
@@ -37,14 +85,10 @@ section listing the valid versions for this application::
     5.1v4 =
     '''
 
-A [main] section is used to set global options, like the default version::
+aliases
+=======
 
-    [main]
-    executable-path = Nuke
-    version-regex = (\d+)\.(\d+)v(\d+)
-    default-version = 6.0v6
-
-Version aliases can also be set in the [aliases] section, and are valid to use
+Alternate names for versions. These are valid to use
 anywhere a version is expected, including as the default-version::
 
     '''
@@ -66,8 +110,11 @@ anywhere a version is expected, including as the default-version::
     5.1v4 =
     '''
 
-Execution Environment
----------------------
+----------------------------------
+Package Body
+----------------------------------
+
+The body of the pykg is regular python executed in a specially prepared environment.
 
 Several variables and functions are added to the globals of pykg script before it
 is executed.

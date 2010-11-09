@@ -1,8 +1,18 @@
 
 
 # core commands
-#setenv PATH ${PATH}:`dirname $SETPKG_PATH`/bin
-set bin = `dirname $SETPKG_PATH`/bin
+
+if ( ! $?SH_PATH ) then
+    setenv SETPKG_ROOT `dirname $SETPKG_PATH`
+endif
+
+if ( ! $?SH_PATH ) thenif [ -z "$PYTHONPATH" ]; then
+    setenv PYTHONPATH $SETPKG_ROOT/python
+else
+    setenv PYTHONPATH $PYTHONPATH:$SETPKG_ROOT/python
+endif
+
+set bin = $SETPKG_ROOT/bin
 
 alias pkg  'eval `$bin/setpkgcli --shell tcsh --pid $$ \!*`'
 
