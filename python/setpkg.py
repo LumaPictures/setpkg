@@ -151,6 +151,90 @@ is executed.
         to easily provide utility functions for use within the pykg file. keep
         in mind that the setpkgutil module must be on the PYTHONPATH before
         it can be used.
+        
+==================================
+Commandline Tools
+==================================
+
+The core command is called `pkg`, which has several sub-commands, notably `set`,
+`unset`, `ls`, `run`, and `info` (call `pkg -h` for details)
+
+here's a simple example, using the Nuke package file outlined above::
+
+    $ setpkg nuke             
+    adding:     [+]  nuke-6.1v2                                          
+    adding:     [+]    python-2.5                                        
+    adding:     [+]      lumaTools-1.0                                   
+    adding:     [+]      pyexternal-1.0                                  
+    adding:     [+]        pymel-1.0                                     
+    adding:     [+]    djv-0.8.3.p2                                      
+    $ setpkg nuke-6.0v6       
+    switching:  [+]  nuke-6.1v2 --> 6.0v6                                
+    $ unsetpkg nuke
+    removing:   [-]  nuke-6.0v6
+    $ setpkg nuke-6.0v6
+    adding:     [+]  nuke-6.0v6
+    $ pkg info nuke
+    name:               nuke
+    executable:         Nuke
+    versions:           5.1v1, 5.1v2, 5.1v3, 5.1v4, 5.1v6, 5.2v1, 5.2v3, 6.0v1, 6.0v2, 6.0v3, 6.0v6, 6.1v1, 6.1v2, 6.1v3
+    subpackages:        djv
+    dependencies:       python-2.5
+    dependents:
+    active version:     6.0v6
+    run commands:       [command]                     [action]
+                        nuke5                         runpkg nuke-5.2v3
+                        nuke6                         runpkg nuke-6.0v6
+    package aliases:    [alias]                       [package]
+                        5.2                           5.2v3
+                        6.0                           6.0v6
+                        6.1                           6.1v2
+    variables:          [variable]                    [values]
+                        NUKE_APP                      /usr/local/Nuke6.0v6
+                        NUKE_GIZMO_PATH               /lumalocal/dev/chad/nuke/gizmos
+                        NUKE_PATH                     /Volumes/luma/_globalSoft/nuke/icons
+                                                      /lumalocal/dev/chad/nuke/gizmos
+                                                      /lumalocal/dev/chad/nuke/python
+                                                      /lumalocal/dev/chad/nuke/plugins/6.0/Linux-x86_64
+                                                      /lumalocal/dev/chad/nuke/python
+                        NUKE_PYTHON_PATH              /lumalocal/dev/chad/nuke/python
+                        NUKE_VER                      6.0v6
+                        NUKE_VERSION_MAJOR            6
+                        NUKE_VERSION_MINOR            0
+                        NUKE_VERSION_REVISION         6
+                        OFX_PLUGIN_PATH               /Volumes/luma/_globalSoft/nuke/ofx_plugins/Linux-x86_64
+                        PATH                          /lumalocal/dev/chad/nuke/bin
+                                                      /usr/local/Nuke6.0v6
+                        PYTHONPATH                    /lumalocal/dev/chad/nuke/python
+    $ unsetpkg nuke
+    removing:   [-]  nuke-6.0v6
+
+==================================
+Installation
+==================================
+
+----------------------------------
+OSX/Linux
+----------------------------------
+
+Bash
+====
+
+In one of you system startup scripts (/etc/profile, ~/.bashrc, ~/.bash_profile, etc) add the
+following lines:
+
+    export SETPKG_ROOT=/path/to/setpkg
+    source $SETPKG_ROOT/scripts/setpkg.sh
+
+Tcsh
+====
+
+In one of you system startup scripts (/etc/csh.login, /etc/csh.cshrc, ~/.tcshrc, etc) add the
+following lines:
+
+    setenv SETPKG_ROOT /path/to/setpkg
+    source $SETPKG_ROOT/scripts/setpkg.csh
+
 """
 
 # TODO:
