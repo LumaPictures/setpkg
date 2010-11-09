@@ -13,22 +13,47 @@ been set, the .pykg file is executed. Differences per OS, architecture, applicat
 version, etc, are handled by code inside the pykg file.
 
 ----------------------------------
-Configuration Header Sections
+Configuration Header
 ----------------------------------
+
+
+The configuration header is a specialized module-level python docstring written in
+ `ConfigParser <http://http://docs.python.org/library/configparser.html>`_ ini-syntax.
+
+An example for Nuke might look like this::
+
+    '''
+    [main]
+    executable-path = Nuke
+    version-regex = (\d+)\.(\d+)v(\d+)
+    default-version = 6.0
+
+    [aliases]
+    6.0 = 6.0v6
+    5.2 = 5.2v3
+
+    [versions]
+    6.0v2 =
+    6.0v1 =
+    5.2v3 =
+    5.2v1 =
+    5.1v6 =
+    5.1v4 =
+    '''
 
 main
 ====
 
 Used to set global options
 
-**executable-path**
-    name of the executable for the package, used by `pkg run`
-
-**version-regex**
-    validates the version and splits it into components provided as VERSION_PARTS (see below)
-
-**default-version**
-    the version used when no version is specified
+    executable-path :
+        name of the executable for the package, used by ``pkg run``
+    
+    version-regex :
+        validates the version and splits it into components provided as VERSION_PARTS (see below)
+    
+    default-version :
+        the version used when no version is specified
 
 example main section::
 
@@ -74,7 +99,6 @@ versions
 To be valid, a pykg file needs a module-level docstring with, at minimum, a [versions]
 section listing the valid versions for this application::
 
-    '''
     [versions]
     6.0v2 =
     6.0v1 =
@@ -82,32 +106,12 @@ section listing the valid versions for this application::
     5.2v1 =
     5.1v6 =
     5.1v4 =
-    '''
 
 aliases
 =======
 
 Alternate names for versions. These are valid to use
-anywhere a version is expected, including as the default-version::
-
-    '''
-    [main]
-    executable-path = Nuke
-    version-regex = (\d+)\.(\d+)v(\d+)
-    default-version = 6.0
-
-    [aliases]
-    6.0 = 6.0v6
-    5.2 = 5.2v3
-
-    [versions]
-    6.0v2 =
-    6.0v1 =
-    5.2v3 =
-    5.2v1 =
-    5.1v6 =
-    5.1v4 =
-    '''
+anywhere a version is expected, including as the ``default-version``.
 
 ----------------------------------
 Package Body
@@ -125,15 +129,15 @@ is executed.
 
     NAME :
         a string containing the package name; considered everything before the
-        first dash `-` in the package name.
+        first dash ``-`` in the package name.
 
     VERSION :
         a string containing the current version being set; considered everything
-        after the first dash `-` in the package name.
+        after the first dash ``-`` in the package name.
 
     VERSION_PARTS :
         a tuple of version parts if the version string was
-        successfully parsed by the `version-regex` config variable, if set;
+        successfully parsed by the ``version-regex`` config variable, if set;
         otherwise, None
 
     LOGGER :
@@ -142,37 +146,40 @@ is executed.
         can also be configured to log to a file.
 
     platform module :
-        the contents of the builtin `platform` module
-        (equivalent of `from platform import *`)
+        the contents of the builtin ``platform`` module
+        (equivalent of ``from platform import *``)
 
     setpkgutil module :
-        contents of `setpkgutil` module, if it exists. this module can be used
+        contents of ``setpkgutil`` module, if it exists. this module can be used
         to easily provide utility functions for use within the pykg file. keep
-        in mind that the setpkgutil module must be on the PYTHONPATH before
+        in mind that the setpkgutil module must be on the ``PYTHONPATH`` before
         it can be used.
         
 ==================================
 Commandline Tools
 ==================================
 
-The core command is called `pkg`, which has several sub-commands, notably `set`,
-`unset`, `ls`, `run`, and `info` (call `pkg -h` for details)
+The core command is called ``pkg``, which has several sub-commands, notably ``set``,
+``unset``, ``ls``, ``run``, and ``info`` (call ``pkg -h`` for details)
 
 here's a simple example, using the Nuke package file outlined above::
 
-    $ setpkg nuke             
+    $ pkg set nuke             
     adding:     [+]  nuke-6.1v2                                          
     adding:     [+]    python-2.5                                        
     adding:     [+]      lumaTools-1.0                                   
     adding:     [+]      pyexternal-1.0                                  
     adding:     [+]        pymel-1.0                                     
     adding:     [+]    djv-0.8.3.p2                                      
+    $ pkg ls
+    djv-0.8.3.p2
+    lumaTools-1.0
+    nuke-6.1v2
+    pyexternal-1.0
+    pymel-1.0
+    python-2.5
     $ setpkg nuke-6.0v6       
     switching:  [+]  nuke-6.1v2 --> 6.0v6                                
-    $ unsetpkg nuke
-    removing:   [-]  nuke-6.0v6
-    $ setpkg nuke-6.0v6
-    adding:     [+]  nuke-6.0v6
     $ pkg info nuke
     name:               nuke
     executable:         Nuke
@@ -205,8 +212,19 @@ here's a simple example, using the Nuke package file outlined above::
                         PATH                          /lumalocal/dev/chad/nuke/bin
                                                       /usr/local/Nuke6.0v6
                         PYTHONPATH                    /lumalocal/dev/chad/nuke/python
-    $ unsetpkg nuke
+    $ pkg unset nuke
     removing:   [-]  nuke-6.0v6
+
+There are also several handy aliases available:
+
+========  =========== 
+alias     cmd
+========  =========== 
+setpkg    pkg set
+unsetpkg  pkg unset
+runpkg    pkg run
+pkgs      pkg ls
+========  ===========
 
 ==================================
 Installation
@@ -233,4 +251,3 @@ following lines:
 
     setenv SETPKG_ROOT /path/to/setpkg
     source $SETPKG_ROOT/scripts/setpkg.csh
-
