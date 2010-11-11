@@ -9,7 +9,7 @@ endif
 if ( ! $?PYTHONPATH ) then
     setenv PYTHONPATH $SETPKG_ROOT/python
 else
-    setenv PYTHONPATH $PYTHONPATH:$SETPKG_ROOT/python
+    setenv PYTHONPATH ${PYTHONPATH}:${SETPKG_ROOT}/python
 endif
 
 set bin = $SETPKG_ROOT/bin
