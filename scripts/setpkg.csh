@@ -6,7 +6,7 @@ if ( ! $?SH_PATH ) then
     setenv SETPKG_ROOT `dirname $SETPKG_PATH`
 endif
 
-if ( ! $?SH_PATH ) thenif [ -z "$PYTHONPATH" ]; then
+if [ -z "$PYTHONPATH" ]; then
     setenv PYTHONPATH $SETPKG_ROOT/python
 else
     setenv PYTHONPATH $PYTHONPATH:$SETPKG_ROOT/python
