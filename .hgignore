@@ -1,0 +1,52 @@
+syntax: regexp
+
+# Paths to ignore (not rooted)
+
+(^|/)\.svn$
+(^|/)\.settings$
+(^|/)\.pydevproject$
+(^|/)\.project$
+(^|/)\.metadata$
+(^|/)\.libs$
+(^|/)\.DS_Store$
+(^|/)_backup$
+(^|/)workarea$
+(^|/)temp$
+(^|/).git$
+(^|/)build$
+
+# Paths to ignore (rooted)
+^realflow$
+^repoHidden$
+^repoVersion$
+
+# Extensions to ignore
+
+(^|/)[^/]*\.o$
+(^|/)[^/]*\.lo$
+(^|/)[^/]*\.la$
+(^|/)[^/]*\.al$
+(^|/)[^/]*\.so\.[0-9]*$
+(^|/)[^/]*\.a$
+(^|/)[^/]*\.pyc$
+(^|/)[^/]*\.pyo$
+(^|/)[^/]*\.bak$
+(^|/)[^/]*\.pbxuser$
+(^|/)[^/]*\.mode1v3$
+(^|/)[^/]*\.pbxbtree$
+(^|/)[^/]*\.build$
+(^|/)[^/]*\.pmbak$
+(^|/)[^/]*\.orig$
+(^|/)[^/]*\.rej$
+
+# ._ files suck
+
+(^|/)\._.*$
+
+# Miscellaneous
+
+(^|/)[^/]*\.[^/]*~c$
+~$
+(^|/)\#[^/]*\#$
+(^|/)\.\#[^/]*
+(^|/)\.[^/]*\.swp
