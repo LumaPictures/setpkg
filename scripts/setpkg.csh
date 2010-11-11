@@ -2,7 +2,7 @@
 
 # core commands
 
-if ( ! $?SH_PATH ) then
+if ( ! $?SETPKG_ROOT ) then
     setenv SETPKG_ROOT `dirname $SETPKG_PATH`
 endif
 
