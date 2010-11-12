@@ -15,6 +15,7 @@ default-version = 1.5.1
 1.5* = python
 '''
 import os
+import sys
 
 repodir, VERSION = repodir(env, NAME, VERSION)
 
@@ -27,7 +28,7 @@ env.HG_VERSION = VERSION
 #     GLOBAL_HGRC:USER_HGRC
 # Since setpkg pre-pends successive entries, we need to specify
 # in reverse order...
-hgrcRoot = repodir + '$SH_PATH/hgrc'
+hgrcRoot = repodir + '/shell/hgrc'
 env.LUMA_HGRCPATH = hgrcRoot
 env.AUTOPILOTPATH = hgrcRoot
 env.HGRCPATH += '~/.hgrc'
