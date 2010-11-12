@@ -35,7 +35,10 @@ if not env.USER_DEV:
 
 
 #------------------------------------------------------------------------------
-    
+
+# Still have some scripts at csh...
+env.PATH += '$LUMA_SOFT/csh'    
+
 env.PATH += '$SH_PATH'
 env.PATH += '$SH_PATH/gnome'
 env.PATH += '$LUMA_SOFT/perl'
