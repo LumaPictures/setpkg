@@ -14,6 +14,7 @@ default-version = 1.5.1
 1.6* = python-2.5
 1.5* = python
 '''
+import os
 
 repodir, VERSION = repodir(env, NAME, VERSION)
 
@@ -26,8 +27,9 @@ env.HG_VERSION = VERSION
 #     GLOBAL_HGRC:USER_HGRC
 # Since setpkg pre-pends successive entries, we need to specify
 # in reverse order...
-env.LUMA_HGRCPATH += repodir + '/csh/hgrc'
-env.AUTOPILOTPATH += repodir + '/csh/hgrc'
+hgrcRoot = repodir + '$SH_PATH/hgrc'
+env.LUMA_HGRCPATH = hgrcRoot
+env.AUTOPILOTPATH = hgrcRoot
 env.HGRCPATH += '~/.hgrc'
 env.HGRCPATH += '$LUMA_HGRCPATH/luma.rc'
 env.HGDIR = repodir + '/python/packages/compiled/$PYTHON_VER/$OS_TYPE-$ARCH/mercurial-$HG_VERSION'

@@ -32,10 +32,12 @@ if not env.USER_DEV:
             env.USER_DEV = env.DEV_LOCAL
         else:
             env.USER_DEV = env.DEV_SERVER
-#------------------------------------------------------------------------------
 
-env.PATH += '$LUMA_SOFT/csh'
-env.PATH += '$LUMA_SOFT/csh/gnome'
+
+#------------------------------------------------------------------------------
+    
+env.PATH += '$SH_PATH'
+env.PATH += '$SH_PATH/gnome'
 env.PATH += '$LUMA_SOFT/perl'
 env.PATH += '$HOME/bin'
 #env PATH /usr/local/lumaGit-1.6.2/bin
