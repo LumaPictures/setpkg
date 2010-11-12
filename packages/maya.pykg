@@ -1,15 +1,19 @@
 '''
 [main]
-version-regex = (\d{4})(?:\.(\d{2}))?
+# version-regex allows for versions like:
+#   2012.b1
+# ...for alpha/beta versions
+version-regex = (\d{4})(?:\.([a-z0-9]\d))?
 #executable-path = $MAYA_LOCATION/bin/maya
 default-version = 2011
 
 [versions]
-2011.00 =
-2011.01 =
-2011.02 =
-2011.03 =
+2012.b1 =
 2011.04 =
+2011.03 =
+2011.02 =
+2011.01 =
+2011.00 =
 2010 =
 2009 =
 
@@ -23,6 +27,7 @@ default-version = 2011
 2011.hf3 = 2011.03
 2011.servicepack1 = 2011.04
 2011.sp1 = 2011.04
+2012 = 2012.b1
 
 [requires]
 2009* = python-2.5
