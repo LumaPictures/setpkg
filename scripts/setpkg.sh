@@ -2,8 +2,8 @@
 # and export with export -f
 
 
-if [ -z "$SETPKG_ROOT" ]; then
-    export SETPKG_ROOT=`dirname "$SETPKG_PATH"`
+if [ -z "$SETPKG_PATH" ]; then
+    export SETPKG_PATH="$SETPKG_ROOT/packages"`
 fi
 
 if [ -z "$PYTHONPATH" ]; then

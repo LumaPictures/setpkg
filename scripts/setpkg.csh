@@ -2,8 +2,8 @@
 
 # core commands
 
-if ( ! $?SETPKG_ROOT ) then
-    setenv SETPKG_ROOT `dirname $SETPKG_PATH`
+if ( ! $?SETPKG_PATH ) then
+    setenv SETPKG_PATH $SETPKG_ROOT/packages
 endif
 
 if ( ! $?PYTHONPATH ) then

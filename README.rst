@@ -231,23 +231,42 @@ Installation
 ==================================
 
 ----------------------------------
+Environment Variables
+----------------------------------
+
+``SETPKG_ROOT``
+    Setpkg is comprised of several parts:
+        - a python module: ``python/setpkg.py``
+        - a command line python executable: ``bin/setpkgcli``
+        - shell-specific startup scripts: ``scripts/setpkg.sh``, ``scripts/setpkg.csh``, etc
+
+    The environment variable ``SETPKG_ROOT`` should be set to the directory containing
+    all of these parts, usually called 'setpkg'.  This environment variable must be
+    set before the shell-specific startup scripts are called.
+
+``SETPKG_PATH``
+    search path for ``.pykg`` files. defaults to ``$SETPKG_ROOT/packages``
+
+----------------------------------
 OSX/Linux
 ----------------------------------
 
 Bash
 ====
 
-In one of you system startup scripts (/etc/profile, ~/.bashrc, ~/.bash_profile, etc) add the
-following lines:
+In one of bash's startup scripts (/etc/profile, ~/.bashrc, ~/.bash_profile, etc) add the
+following lines::
 
     export SETPKG_ROOT=/path/to/setpkg
+    export SETPKG_PATH=/path/to/pykg_dir:/path/to/other/pykg_dir
     source $SETPKG_ROOT/scripts/setpkg.sh
 
 Tcsh
 ====
 
-In one of you system startup scripts (/etc/csh.login, /etc/csh.cshrc, ~/.tcshrc, etc) add the
-following lines:
+In one tcsh's startup scripts (/etc/csh.login, /etc/csh.cshrc, ~/.tcshrc, etc) add the
+following lines::
 
     setenv SETPKG_ROOT /path/to/setpkg
+    setenv SETPKG_PATH /path/to/pykg_dir:/path/to/other/pykg_dir
     source $SETPKG_ROOT/scripts/setpkg.csh
