@@ -14,7 +14,7 @@ default-version = 3.3.2.2
 3.3.1 = 3.3.1.0
 3.3.2 = 3.3.2.2
 '''
-
+env.ARNOLD_LICENSE_HOST = 'sv-lic10'
 env.PATH += '/usr/local/solidAngle/arnold-%s/bin' % VERSION
 env.PYTHONPATH += '/usr/local/solidAngle/arnold-%s/python' % VERSION
 if env.MAYA_VERSION_NUM:
