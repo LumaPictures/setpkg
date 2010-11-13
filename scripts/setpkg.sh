@@ -3,7 +3,7 @@
 
 
 if [ -z "$SETPKG_PATH" ]; then
-    export SETPKG_PATH="$SETPKG_ROOT/packages"`
+    export SETPKG_PATH="$SETPKG_ROOT/packages"
 fi
 
 if [ -z "$PYTHONPATH" ]; then
