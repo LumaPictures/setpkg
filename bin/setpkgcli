@@ -169,6 +169,7 @@ def info(args):
     detail('name', package.name)
     detail('executable', package.executable)
     detail('versions', ', '.join(sorted(package.versions)))
+    detail('default version', str(package.default_version))
     detail('subpackages', ', '.join(package.subpackages))
     detail('dependencies', ', '.join([pkg.origname for pkg in package.get_dependencies()]))
     

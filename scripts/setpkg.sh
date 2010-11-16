@@ -38,6 +38,11 @@ function pkgs {
 }
 export -f pkgs
 
+function allpkgs {
+    pkg ls --all "$@"
+}
+export -f allpkgs
+
 function addenv {
     pkg env prepend "$@"
 }

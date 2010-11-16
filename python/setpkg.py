@@ -453,7 +453,9 @@ class Bash(Shell):
     def unsetenv(self, key):
         return "unset %s;" % ( key, )
     def alias(self, key, value):
-        return "alias %s='%s';" % ( key, value)
+        # bash aliases don't export to subshells; so instead define a function,
+        # then export that function
+        return "%(key)s() { %(value)s; };\nexport -f %(key)s;" % locals()
 
 class Tcsh(Shell):
     def setenv(self, key, value):
@@ -1108,13 +1110,7 @@ class Package(BasePackage):
     def version(self):
         version = self._version
         if not version:
-            if self.config.has_option('main', 'default-version'):
-                version = self.config.get('main', 'default-version')
-            elif len(self.versions) == 1:
-                version = self.versions[0]
-            else:
-                raise PackageError(self.name, "no 'default-version' specified in package header ([main] section)")
-
+            version = self.default_version
         if version not in self.versions:
             try:
                 # expand aliases
@@ -1123,6 +1119,17 @@ class Package(BasePackage):
                 if not self.explicit_version:
                     version = '%s (default)' % version
                 raise InvalidPackageVersion(self.name, version, '(valid choices are %s)' % ', '.join(self.versions))
+        return version
+    
+    @propertycache
+    def default_version(self):
+        if self.config.has_option('main', 'default-version'):
+            version = self.config.get('main', 'default-version')
+        elif len(self.versions) == 1:
+            version = self.versions[0]
+        else:
+            raise PackageError(self.name, "no 'default-version' specified in package header ([main] section)")
+            version = None
         return version
 
     @propertycache

@@ -21,6 +21,8 @@ alias delenv    'pkg env pop \!*'
 alias setpkg    'pkg set \!*'
 alias unsetpkg  'pkg unset \!*'
 alias runpkg    'pkg run \!*'
+alias pkgs      'pkg ls \!*'
+alias allpkgs      'pkg ls --all \!*'
 
 # system aliases
 pkg system-alias
@@ -31,3 +33,4 @@ set base_packages = `pkg ls --base`
 
 complete setpkg  p/1/\$packages/ n/-rehash/\$packages/
 complete unsetpkg  p/1/\$base_packages/
+
