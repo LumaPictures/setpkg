@@ -8,17 +8,20 @@ default-version = 3.3.2.2
 3.3.1.0 = 
 3.3.2.0 =
 3.3.2.2 =
+3.3.3.0 =
 
 [aliases]
 3.3.0 = 3.3.0.0
 3.3.1 = 3.3.1.0
 3.3.2 = 3.3.2.2
+3.3.3 = 3.3.3.0
 '''
 env.ARNOLD_LICENSE_HOST = 'sv-lic10'
 env.PATH += '/usr/local/solidAngle/arnold-%s/bin' % VERSION
 env.PYTHONPATH += '/usr/local/solidAngle/arnold-%s/python' % VERSION
 if env.MAYA_VERSION_NUM:
-    mtoadir = '/usr/local/solidAngle/mtoa/$MAYA_VERSION_NUM'
+    # technically mtoa should be another package, but for now...
+    mtoadir = '/usr/local/solidAngle/mtoa-0.4/$MAYA_VERSION_NUM'
     env.MAYA_MODULE_PATH += mtoadir
     env.MAYA_RENDER_DESC_PATH += mtoadir
     env.MTOA_PLUGINS_PATH = '%s/plug-ins' % mtoadir
