@@ -26,5 +26,7 @@ env.PATH += '$RV_BIN_PATH'
 
 env.RV_CUSTOM_DLUT_DIR += pkgpath + '/LUTs'
 env.PYTHONPATH += pkgpath + '/python'
+env.RV_SUPPORT_PATH += env.RV_PATH + '/plugins'
 env.RV_SUPPORT_PATH += pkgpath + '/plugins'
+env.RV_SUPPORT_PATH += env.RV_PATH + '~/.rv'
 env.RV_PYTHON_DATA_SOURCE += pkgpath + '/bin/rv_dataServer.py'
