@@ -34,7 +34,7 @@ default-version = 2011
 2011* = python-2.6
 
 [subs]
-2011* = mray-3.8.1, fume
+2011* = mray-3.8.1, fume, shave-5.5v9
 
 [system-aliases]
 2011 =
@@ -74,6 +74,8 @@ env.PYTHONPATH += pkgpath + '/python'
 env.PYTHONPATH += pkgpath + '/plugins/python'
 env.MAYA_SHELF_PATH += '$LUMA_SOFT/maya/shelves'
 env.MAYA_MODULE_PATH += '$LUMA_SOFT/maya/modules/$MAYA_VERSION_NUM/$OS_ARCH'
+env.SETPKG_PATH += '$LUMA_SOFT/maya/modules'
+env.POOP = 'adfadf'
 env.MAYA_MODULE_PATH += '$LUMA_SOFT/maya/modules/python'
 env.MAYA_PLUG_IN_PATH += pkgpath + '/plugins/$MAYA_VERSION_NUM/$OS_ARCH'
 env.MAYA_PLUG_IN_PATH += pkgpath + '/plugins/python'

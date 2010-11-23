@@ -13,10 +13,10 @@ command line tool, if the requested version of the package has not yet already
 been set, the .pykg file is executed. Differences per OS, architecture, application
 version, etc, are handled by code inside the pykg file.
 
+
 ----------------------------------
 Configuration Header
 ----------------------------------
-
 
 The configuration header is a specialized module-level python docstring written in
  `ConfigParser <http://http://docs.python.org/library/configparser.html>`_ ini-syntax.
@@ -155,7 +155,25 @@ is executed.
         to easily provide utility functions for use within the pykg file. keep
         in mind that the setpkgutil module must be on the ``PYTHONPATH`` before
         it can be used.
-        
+
+----------------------------------
+Body
+----------------------------------
+
+set a variable, overriding any pre-existing value::
+    env.MY_VAR = 'foo'
+
+prepend to a variable, using os-specific variable separators 
+( ``:`` on linux/max and ``;`` on windows)::
+    env.MY_VAR += 'bar'
+
+All paths used within pykg files should use unix-style forward slashes. On
+Windows platforms, they will be converted to backslashes.
+
+Relative paths will be expanded relative to the pykg file, which is useful for
+creating maya module-like pykg files. To do this, the parent package simply sets
+``SETPKG_PATH`` to a location containing additional pykg files.
+
 ==================================
 Commandline Tools
 ==================================
@@ -282,6 +300,7 @@ following lines::
 from __future__ import with_statement
 import os
 import posixpath
+import ntpath
 import sys
 import pprint
 import re
@@ -524,6 +543,13 @@ def get_shell_class(shell_name):
 # Environment Classes
 #------------------------------------------------
 
+def _abspath(root, value):
+    # not all variables are paths: only absolutize if it looks like a relative path
+    if root and \
+        (value.startswith('./') or \
+        ('/' in value and not (posixpath.isabs(value) or ntpath.isabs(value)))):
+        value = os.path.join(root, value)
+    return value
 
 def _expand(value, strip_quotes=False):
     # use posixpath because setpkg expects posix-style paths and variable expansion
@@ -542,10 +568,16 @@ def _join(values):
 def _nativepath(path):
     return os.path.join(path.split('/'))
 
-def prependenv(name, value, expand=True, no_dupes=False):
+def _ntpath(path):
+    return ntpath.sep.join(path.split(posixpath.sep))
+
+def _posixpath(path):
+    return posixpath.sep.join(path.split(ntpath.sep))
+
+def prependenv(name, value, expand=True, no_dupes=False, root=None):
     if expand:
         value = _expand(value, strip_quotes=True)
-
+    value = _abspath(root, value)
     if name not in os.environ:
         os.environ[name] = value
     else:
@@ -567,9 +599,10 @@ def prependenv(name, value, expand=True, no_dupes=False):
     #print "prepend", name, value
     return value
 
-def appendenv(name, value, expand=True, no_dupes=False):
+def appendenv(name, value, expand=True, no_dupes=False, root=None):
     if expand:
         value = _expand(value, strip_quotes=True)
+    value = _abspath(root, value)
 
     if name not in os.environ:
         os.environ[name] = value
@@ -592,7 +625,7 @@ def appendenv(name, value, expand=True, no_dupes=False):
     #print "prepend", name, value
     return value
 
-def prependenvs(name, value):
+def prependenvs(name, value, root=None):
     '''
     like prependenv, but in addition to setting single values, it also allows
     value to be a separated list of values (foo:bar) or a python list
@@ -603,19 +636,22 @@ def prependenvs(name, value):
         parts = _split(value)
     # traverse in reverse order, so precedence given is maintained
     for part in reversed(parts):
-        prependenv(name, part)
+        prependenv(name, part, root=root)
     return value
 
-def setenv(name, value, expand=True):
+def setenv(name, value, expand=True, root=None):
     if expand:
         value = _expand(value, strip_quotes=True)
+    value = _abspath(root, value)
+
     os.environ[name] = value
     #print "set", name, value
     return value
 
-def popenv(name, value, expand=True):
+def popenv(name, value, expand=True, root=None):
     if expand:
         value = _expand(value, strip_quotes=True)
+    value = _abspath(root, value)
 
     try:
         current_value = os.environ[name]
@@ -648,8 +684,10 @@ class Environment(object):
 #    def __getattr__(self, attr):
 #        return EnvironmentVariable(attr, self.environ)
 
-    def __init__(self):
+    def __init__(self, root=None):
         self.__dict__['_environ'] = defaultdict(list)
+        # use posixpath internally
+        self.__dict__['_root'] = _posixpath(root) if root else root
 
     def __getattr__(self, attr):
         if attr.startswith('__') and attr.endswith('__'):
@@ -657,7 +695,7 @@ class Environment(object):
                 self.__dict__[attr]
             except KeyError:
                 raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
-        return EnvironmentVariable(attr, self.__dict__['_environ'])
+        return EnvironmentVariable(attr, self.__dict__['_environ'], self.__dict__['_root'])
 
     # There's some code duplication between Environment.__setattr__ and
     # EnvironmentVariable.set... going to leave it as is, assuming it's
@@ -671,8 +709,8 @@ class Environment(object):
             value = value.value()
         else:
             value = str(value)
-        self.__dict__['_environ'][attr] = [setenv(attr, value)]
-        
+        self.__dict__['_environ'][attr] = [setenv(attr, value, self.__dict__['_root'])]
+
     def __contains__(self, attr):
         return attr in os.environ
 
@@ -687,9 +725,10 @@ class EnvironmentVariable(object):
     combined with Environment class, tracks changes to the environment
     '''
 
-    def __init__(self, name, environ):
+    def __init__(self, name, environ, root):
         self._name = name
         self._environ = environ
+        self._root = root
 
     def __str__(self):
         return '%s = %s' % (self._name, self.value())
@@ -707,6 +746,7 @@ class EnvironmentVariable(object):
     def prepend(self, value, **kwargs):
         if isinstance(value, EnvironmentVariable):
             value = value.value()
+        kwargs['root'] = self._root
         expanded_value = prependenv(self._name, value, **kwargs)
         # track changes
         self._environ[self._name].insert(0, expanded_value)
@@ -719,6 +759,7 @@ class EnvironmentVariable(object):
     def append(self, value, **kwargs):
         if isinstance(value, EnvironmentVariable):
             value = value.value()
+        kwargs['root'] = self._root
         expanded_value = appendenv(self._name, value, **kwargs)
         # track changes
         self._environ[self._name].append(expanded_value)
@@ -731,9 +772,10 @@ class EnvironmentVariable(object):
     # There's some code duplication between Environment.__setattr__ and
     # EnvironmentVariable.set... going to leave it as is, assuming it's
     # duplicated for speed reasons... just remember to edit both places
-    def set(self, value):
+    def set(self, value, **kwargs):
         if isinstance(value, EnvironmentVariable):
             value = value.value()
+        kwargs['root'] = self._root
         expanded_value = setenv(self._name, value)
         # track changes
         self._environ[self._name] = [expanded_value]
@@ -1076,12 +1118,13 @@ class Package(BasePackage):
             otherwise an error is raised.
         '''
         self.file = file
-        self.name = os.path.splitext(os.path.basename(file))[0]
+        parent, basename = os.path.split(file)
+        self.name = os.path.splitext(basename)[0]
         self._version = version
         self._parent = None
         self._dependencies = []
         self._dependents = []
-        self._environ = Environment()
+        self._environ = Environment(parent)
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.file, self.version)
@@ -1461,7 +1504,11 @@ class Session():
 #            var.prepend(pkg, expand=False)
 
     def add_package(self, name, parent=None, force=False, depth=0):
-        package = get_package(name)
+        try:
+            package = get_package(name)
+        except PackageError, err:
+            print err
+            return
         shortname = package.name
         curr = PackageInterface(shortname)
         reloading = False
