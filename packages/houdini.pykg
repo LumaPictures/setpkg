@@ -1,9 +1,10 @@
 '''
 [main]
 version-regex = (\d+)\.(\d+)\.(\d+)
-default-version = 11.0.504
+default-version = 11.0.547
 
 [versions]
+11.0.547 =
 11.0.504 =
 11.0.442 =
 10.0.595 =
