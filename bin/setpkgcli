@@ -2,8 +2,9 @@
 import sys
 import os
 
-dir = os.path.dirname(os.path.dirname(sys.argv[0]))
-sys.path.insert(0, dir)
+setpkg_dir = os.path.join(os.path.dirname(os.path.dirname(sys.argv[0])), 'python')
+sys.path.insert(0, setpkg_dir)
+#print >> sys.stderr, "setpkg_dir:", setpkg_dir
 from setpkg import *
 from setpkg import _splitname
 
