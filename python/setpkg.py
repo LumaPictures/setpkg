@@ -842,6 +842,12 @@ class InvalidPackageVersion(PackageError):
     def __str__(self):
         return '%s: invalid version %s: %s' % (self.package, self.bad_version, self.detail)
 
+class PackageRemovedError(PackageError):
+    def __init__(self, package):
+        self.package = package
+    def __str__(self):
+        return 'Package %s has been removed' % self.package
+
 class PackageExecutionError(PackageError):
     def __str__(self):
         return 'error during execution of %s.pykg file: %s' % (self.package, self.detail)
@@ -1079,7 +1085,7 @@ class PackageInterface(BasePackage):
             version, hash = os.environ[VER_PREFIX + self.name].split(META_SEP)
         except KeyError:
             # TODO: different error
-            raise
+            raise PackageRemovedError(self.name)
         self.version = version
         return hash
 
@@ -1088,8 +1094,7 @@ class PackageInterface(BasePackage):
         try:
             version, hash = os.environ[VER_PREFIX + self.name].split(META_SEP)
         except KeyError:
-            # TODO: different error
-            raise
+            raise PackageRemovedError(self.name)
         
         if self._version:
             if self._version != version:
@@ -1597,7 +1602,10 @@ class Session():
 
         elif not reloading:
             for depend in package.get_dependents():
-                self.remove_package(depend.fullname, depth=depth+1)
+                # Make sure that the package hasn't already been removed
+                # because of some other recursive dependency...
+                if depend.name in current_versions():
+                    self.remove_package(depend.fullname, depth=depth+1)
         return package
 
     @property
