@@ -16,7 +16,7 @@ syntax: regexp
 (^|/)build$
 
 # Paths to ignore (rooted)
-#^ignoreMe$
+^packages$
 
 # Extensions to ignore
 
