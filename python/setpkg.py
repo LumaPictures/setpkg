@@ -907,9 +907,13 @@ def find_package_file(name):
     raise PackageError(name, 'unknown package')
 
 def walk_package_files():
+    # Accomodate for hiearchical setpkg paths - if we've already encountered
+    # a given .pykg, don't yield a new one
+    discovered = set()
     for path in _pkgpaths():
         for f in sorted(os.listdir(path)):
-            if f.endswith('.pykg'):
+            if f.endswith('.pykg') and f not in discovered:
+                discovered.add(f)
                 yield os.path.join(path, f)
 
 def list_package_choices(package=None, versions=True, aliases=False):
