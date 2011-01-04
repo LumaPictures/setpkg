@@ -1624,6 +1624,7 @@ def setpkg(packages, force=False, update_pypath=False, pid=None):
     """
     :param update_pythonpath: set to True if changes to PYTHONPATH should be
         reflected in sys.path
+        (obselete - ignored - PYTHONPATH changes are always reflected in sys.path)
     :param force: set to True if package should be re-run (unloaded, then
         loaded again) if already loaded
     """
@@ -1640,6 +1641,7 @@ def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
     """
     :param update_pythonpath: set to True if changes to PYTHONPATH should be
         reflected in sys.path
+        (obselete - ignored - PYTHONPATH changes are always reflected in sys.path)
     :param force: set to True if package should be re-run (unloaded, then
         loaded again) if already loaded
     """
