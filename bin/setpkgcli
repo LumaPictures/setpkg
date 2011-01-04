@@ -167,10 +167,19 @@ def info(args):
             detail('', *data)
         status('')
 
+    if version:
+        # resolve alias to real version
+        version = package.aliases.get(version, version)
+        aliases = dict([(a, v) for a,v in package.aliases.items() if v==version])
+    else:
+        aliases = package.aliases
+    defaultVer = package.default_version
+    defaultVer = aliases.get(defaultVer, defaultVer)   
+
     detail('name', package.name)
     detail('executable', package.executable)
     detail('versions', ', '.join(sorted(package.versions)))
-    detail('default version', str(package.default_version))
+    detail('default version', str(defaultVer))
     detail('subpackages', ', '.join(package.subpackages))
     detail('dependencies', ', '.join([pkg.origname for pkg in package.get_dependencies()]))
     
@@ -193,13 +202,6 @@ def info(args):
     else:
         detail('aliases', '<none>')
         status('')
-
-    if version:
-        # resolve alias to real version
-        version = package.aliases.get(version, version)
-        aliases = dict([(a, v) for a,v in package.aliases.items() if v==version])
-    else:
-        aliases = package.aliases
 
     if aliases:
         table('package aliases',
