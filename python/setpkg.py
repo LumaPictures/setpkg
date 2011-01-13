@@ -1397,8 +1397,15 @@ class Session():
                 # depending on the underlying database type used by shelve,
                 # the file may actually be several files
                 for suffix in ['', '.bak', '.dat', '.dir', '.db']:
-                    if os.path.exists(old_filename + suffix):
-                        shutil.copy(old_filename + suffix, filename + suffix)
+                    full_old_filename = old_filename + suffix 
+                    if os.path.exists(full_old_filename):
+                        # can have some permissions issues (ie, with chmod)
+                        # if the file already exists... make life easier and
+                        # just delete it
+                        full_new_filename = filename + suffix
+                        if os.path.isfile(full_new_filename):
+                            os.remove(full_new_filename)
+                        shutil.copy(full_old_filename, full_new_filename)
                 pkg = FakePackage('setpkg', version='2.0')
                 pkg._environ.SETPKG_SESSION.set(filename)
                 self._added.append(pkg)
