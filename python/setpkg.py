@@ -1175,13 +1175,14 @@ class Package(BasePackage):
     
     @propertycache
     def default_version(self):
-        if self.config.has_option('main', 'default-version'):
-            version = self.config.get('main', 'default-version')
-        elif len(self.versions) == 1:
-            version = self.versions[0]
-        else:
-            raise PackageError(self.name, "no 'default-version' specified in package header ([main] section)")
-            version = None
+        version = os.environ.get('SETPKG_%s_DEFAULT_VERSION' % self.name.upper())
+        if not version:
+            if self.config.has_option('main', 'default-version'):
+                version = self.config.get('main', 'default-version')
+            elif len(self.versions) == 1:
+                version = self.versions[0]
+            else:
+                raise PackageError(self.name, "no 'default-version' specified in package header ([main] section)")
         return version
 
     @propertycache
