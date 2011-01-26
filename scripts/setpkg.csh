@@ -1,6 +1,14 @@
 
+set called=($_)
 
-# core commands
+echo $called
+if ( ! $?SETPKG_ROOT ) then
+    # This will only have any point if it's sourced, so just use $BASH_SOURCE[0]
+    set sourceArg="${called[2]}"
+    set thisfile=`python -c "import os,sys; print os.path.normcase(os.path.normpath(os.path.realpath(os.path.abspath(sys.argv[1]))))" "$called[2]"`
+    set thisdir=`dirname $thisfile`
+    setenv SETPKG_ROOT `dirname $thisdir`
+endif
 
 if ( ! $?SETPKG_PATH ) then
     setenv SETPKG_PATH $SETPKG_ROOT/packages
@@ -14,7 +22,10 @@ endif
 
 set bin = $SETPKG_ROOT/bin
 
-alias pkg  'eval `$bin/setpkgcli --shell tcsh --pid $$ \!*`'
+# core commands
+
+alias pkg       'eval `$bin/setpkgcli --shell tcsh --pid $$ \!*`'
+alias debugpkg  'echo `$bin/setpkgcli --shell tcsh --pid $$ \!*`'
 
 alias addenv    'pkg env prepend \!*'
 alias delenv    'pkg env pop \!*'
