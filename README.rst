@@ -234,7 +234,7 @@ Installation
 Environment Variables
 ----------------------------------
 
-``SETPKG_ROOT``
+``SETPKG_ROOT`` :
     Setpkg is comprised of several parts:
         - a python module: ``python/setpkg.py``
         - a command line python executable: ``bin/setpkgcli``
@@ -244,8 +244,14 @@ Environment Variables
     all of these parts, usually called 'setpkg'.  This environment variable must be
     set before the shell-specific startup scripts are called.
 
-``SETPKG_PATH``
-    search path for ``.pykg`` files. defaults to ``$SETPKG_ROOT/packages``
+``SETPKG_PATH`` :
+    Search path for ``.pykg`` files. defaults to ``$SETPKG_ROOT/packages``
+
+``SETPKG_PYTHONBIN`` :
+    Location of the python interpreter to use with setpkg. setpkg cannot use the python
+    interpreter on the executable ``PATH`` as this variable might change, and incompatibilities
+    between versions of python are known to cause problems. If not set, the full path to the python
+    binary found at startup (using ``which python``)  will be stored in this variable.
 
 ----------------------------------
 OSX/Linux
@@ -264,7 +270,7 @@ following lines::
 Tcsh
 ====
 
-In one tcsh's startup scripts (/etc/csh.login, /etc/csh.cshrc, ~/.tcshrc, etc) add the
+In one of tcsh's startup scripts (/etc/csh.login, /etc/csh.cshrc, ~/.tcshrc, etc) add the
 following lines::
 
     setenv SETPKG_ROOT /path/to/setpkg

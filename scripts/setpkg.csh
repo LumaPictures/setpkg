@@ -20,12 +20,16 @@ else
     setenv PYTHONPATH ${PYTHONPATH}:${SETPKG_ROOT}/python
 endif
 
+if ( ! $?SETPKG_PYTHONBIN ) then
+    setenv SETPKG_PYTHONBIN `which python`
+endif
+
 set bin = $SETPKG_ROOT/bin
 
 # core commands
 
-alias pkg       'eval `$bin/setpkgcli --shell tcsh --pid $$ \!*`'
-alias debugpkg  'echo `$bin/setpkgcli --shell tcsh --pid $$ \!*`'
+alias pkg       'eval `$SETPKG_PYTHONBIN $bin/setpkgcli --shell tcsh --pid $$ \!*`'
+alias debugpkg  'echo `$SETPKG_PYTHONBIN $bin/setpkgcli --shell tcsh --pid $$ \!*`'
 
 alias addenv    'pkg env prepend \!*'
 alias delenv    'pkg env pop \!*'
@@ -44,4 +48,3 @@ set base_packages = `pkg ls --base`
 
 complete setpkg  p/1/\$packages/ n/-rehash/\$packages/
 complete unsetpkg  p/1/\$base_packages/
-

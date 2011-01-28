@@ -15,11 +15,15 @@ else
     export PYTHONPATH="$PYTHONPATH:$SETPKG_ROOT/python"
 fi
 
+if [ -z "$SETPKG_PYTHONBIN" ]; then
+    export SETPKG_PYTHONBIN=`which python`
+fi
+
 # Bash aliases are not inherited, unlike tcsh aliases; so make them functions
 # and export with export -f
 
 function pkg { 
-    eval `$SETPKG_ROOT/bin/setpkgcli --shell bash --pid $$ "$@"`
+    eval `$SETPKG_PYTHONBIN $SETPKG_ROOT/bin/setpkgcli --shell bash --pid $$ "$@"`
 }
 export -f pkg
 

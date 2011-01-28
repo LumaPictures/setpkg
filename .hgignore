@@ -16,7 +16,9 @@ syntax: regexp
 (^|/)build$
 
 # Paths to ignore (rooted)
-^packages$
+^realflow$
+^repoHidden$
+^repoVersion$
 
 # Extensions to ignore
 
