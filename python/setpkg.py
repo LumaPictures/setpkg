@@ -985,6 +985,20 @@ def current_version(name):
     '''
     return _current_data(name)[0]
 
+def is_pkg_set(name):
+    '''
+    return whether the package is set. if a package version is supplied,
+    will also check that this is the version is active
+    '''
+    version = current_version(name)
+    if not version:
+        return False
+    shortname, ver = _splitname(name)
+    if ver:
+        return version == ver
+    else:
+        return True
+
 def current_versions():
     '''
     return a dictionary of shortname to version for all active packages
@@ -1439,7 +1453,13 @@ class Session():
         logger.info('%s: %s' % (package, action))
 
     def _exec_package(self, package, depth=0):
-
+        '''
+        excecute the pacakge.
+         - setup the python globals
+         - load the package requirements
+         - execfile the package file
+         - load package dependents
+        ''' 
         g = {}
         # environment
         g['env'] = package._environ
@@ -1457,6 +1477,8 @@ class Session():
         def subpkg(subname):
             self.add_package(subname, parent=package, depth=depth+1)
         g['setpkg'] = subpkg
+        for n in ['is_pkg_set', 'current_version']:
+            g[n] = globals()[n]
 
         # platform utilities
         import platform
