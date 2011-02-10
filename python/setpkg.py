@@ -446,6 +446,7 @@ def executableOutput(exeAndArgs, convertNewlines=True, stripTrailingNewline=True
         return cmdOutput, cmdProcess.returncode
     return cmdOutput
 
+
 #------------------------------------------------
 # Shell Classes
 #------------------------------------------------
@@ -543,6 +544,34 @@ def get_shell_class(shell_name):
 # Environment Classes
 #------------------------------------------------
 
+class EnvironSwapper(object):
+    '''Temporarily sets os.environ to use a 'fake' environment
+    
+    If no environ is explicitly given, a copy of the current os.environ is used.
+    
+    Intended for use with the 'with' statement
+    
+    >>> from __future__ import with_statement
+    >>> os.environ['TESTVAR'] = 'orig'
+    >>> with EnvironSwapper():
+    ...     os.environ['TESTVAR'] = 'new flava'
+    ...     os.environ['TESTVAR']
+    'new flava'
+    >>> os.environ['TESTVAR']
+    'orig'
+    '''
+    def __init__(self, environ=None):
+        if environ is None:
+            environ = dict(os.environ)
+        self.oldEnviron = os.environ
+    
+    def __enter__(self):
+        self.oldEnviron = os.environ
+        os.environ = self.newEnviron
+    
+    def __exit__(self, *args):
+        os.environ = self.oldEnviron
+
 def _abspath(root, value):
     # not all variables are paths: only absolutize if it looks like a relative path
     if root and \
@@ -551,10 +580,15 @@ def _abspath(root, value):
         value = os.path.join(root, value)
     return value
 
-def _expand(value, strip_quotes=False):
+def _expand(value, strip_quotes=False, environ=None):
     # use posixpath because setpkg expects posix-style paths and variable expansion
     # (on windows: os.path.expandvars will not expand $FOO-x64)
-    expanded = os.path.normpath(os.path.expanduser(posixpath.expandvars(value)))
+    if environ is None:
+        expanded = posixpath.expandvars(value)
+    else:    
+        with EnvironSwapper(environ):
+            expanded = posixpath.expandvars(value)
+    expanded = os.path.normpath(os.path.expanduser(expanded))
     if strip_quotes:
         expanded = expanded.strip('"')
     return expanded
