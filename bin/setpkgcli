@@ -2,6 +2,8 @@
 import sys
 import os
 
+saved_stdout = sys.stdout
+
 setpkg_dir = os.path.join(os.path.dirname(os.path.dirname(sys.argv[0])), 'python')
 sys.path.insert(0, setpkg_dir)
 #print >> sys.stderr, "setpkg_dir:", setpkg_dir
@@ -61,7 +63,7 @@ def _get_shell(shell, *args, **kwargs):
         sys.exit(1)
   
 def command(value):
-    sys.__stdout__.write(value + '\n')
+    saved_stdout.write(value + '\n')
 
 # TODO: move this to the Shell class
 def error(value):
@@ -69,7 +71,7 @@ def error(value):
 
 # using this kills whitespace formatting!
 def status(value):
-    sys.__stdout__.write('echo "%s";\n' % value)
+    saved_stdout.write('echo "%s";\n' % value)
 
 
 def list_packages(args):
@@ -387,4 +389,4 @@ try:
     sys.stdout = sys.stderr
     cli()
 finally:
-    sys.stdout = sys.__stdout__
+    sys.stdout = saved_stdout
