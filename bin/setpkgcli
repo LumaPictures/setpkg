@@ -78,7 +78,8 @@ def list_packages(args):
     if args.all:
         for pkg in list_package_choices(args.packages,
                                               versions=not args.base,
-                                              aliases=args.aliases):
+                                              aliases=args.aliases,
+                                              regexp=not args.no_regexp):
             status(pkg)
     else:
         for pkg in list_active_packages(args.packages, args.pid):
@@ -180,7 +181,7 @@ def info(args):
 
     detail('name', package.name)
     detail('executable', package.executable)
-    detail('versions', ', '.join(sorted(package.versions)))
+    detail('versions', ', '.join(list_package_versions(package, regexp=True)))
     detail('default version', str(defaultVer))
     detail('subpackages', ', '.join(package.subpackages))
     detail('dependencies', ', '.join([pkg.origname for pkg in package.get_dependencies()]))
@@ -331,6 +332,9 @@ def cli():
 
     list_parser.add_argument('--aliases', dest='aliases', action='store_true',
                        help='include aliases')
+
+    list_parser.add_argument('--no-regexp', action='store_true',
+                       help='include regexp (if enabled for package)')
 
     list_parser.set_defaults(func=list_packages)
 

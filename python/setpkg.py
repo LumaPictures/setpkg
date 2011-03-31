@@ -52,6 +52,10 @@ Used to set global options
     
     version-regex :
         validates the version and splits it into components provided as VERSION_PARTS (see below)
+        
+    versions-from-regex :
+        whether to allow versions which are not explicitly listed in versions
+        (see below) but do match the version-regex (if it is provided)
     
     default-version :
         the version used when no version is specified
@@ -938,7 +942,10 @@ def find_package_file(name):
     '''
     given an unversioned package name, search SETPKG_PATH for the .pykg file
 
-    :param name: a versioned or unversioned package name
+    Parameters
+    ----------
+    name : str
+        a versioned or unversioned package name
     '''
     for path in _pkgpaths():
         file = os.path.join(_expand(path), (name + '.pykg'))
@@ -956,12 +963,23 @@ def walk_package_files():
                 discovered.add(f)
                 yield os.path.join(path, f)
 
-def list_package_choices(package=None, versions=True, aliases=False):
+def list_package_choices(package=None, versions=True, aliases=False,
+                         regexp=False):
     '''
     list available packages in NAME-VERSION format.
 
-    :param package: name of package to list versions for.  if None, lists
-        all available packages and versions
+    Parameters
+    ----------
+    package : str
+        name of package to list versions for.  if None, lists all available
+        packages and versions
+    versions : bool
+        whether to list all versions for a package
+    aliases : bool
+        if versions is True, whether to list all aliases as well
+    regexp : bool
+        if versions is True, and versions-from-regexp is enabled, whether to list
+        this regexp in the versions as well
 
     '''
     packages = []
@@ -976,20 +994,64 @@ def list_package_choices(package=None, versions=True, aliases=False):
     for package_file in package_files:
         try:
             pkg = Package(package_file)
-            for version in pkg.versions:
-                packages.append(_joinname(pkg.name, version))
-            if aliases:
-                for alias in sorted(pkg.aliases):
-                    packages.append(_joinname(pkg.name, alias))
+            versions = list_package_versions(package=pkg, aliases=aliases,
+                                             regexp=regexp)
+            packages.extend(_joinname(pkg.name, ver) for ver in versions)
         except PackageError, err:
             logger.debug(str(err))
     return packages
+
+def list_package_versions(package=None, package_file=None,
+                          aliases=False, regexp=False):
+    '''list all available versions for a package
+    
+    Parameters
+    ----------
+    package : str or Package
+        name of package, or Package object to list versions for.
+        Exactly one of package and package_file must be provided (and not both) 
+    package_file : str
+        path of package to list versions for.
+        Exactly one of package and package_file must be provided (and not both) 
+    aliases : bool
+        if versions is True, whether to list all aliases as well
+    regexp : bool
+        if versions is True, and version-by-regexp is enabled, whether to list
+        this regexp in the versions as well
+    '''
+    if not package or package_file:
+        raise PackageError('no package or packageFile given')
+    elif package and package_file:
+        raise PackageError('both package and packageFile given')
+    elif package:
+        if isinstance(package, Package):
+            package_file = package.file
+        else:
+            package_file = find_package_file(package)
+
+    versions = []
+    try:
+        pkg = Package(package_file)
+        versions = list(pkg.versions)
+        if aliases:
+            versions.extend(sorted(pkg.aliases))
+        if regexp and pkg.version_from_regex:
+            ver_re = pkg.version_regex
+            if ver_re:
+                versions.append('(regexp:' + ver_re.pattern + ')')
+    except PackageError, err:
+        logger.debug(str(err))
+    return versions
+    
 
 def get_package(name):
     '''
     find a package on SETPKG_PATH and return a Package class.
 
-    :param name: a versioned or unversioned package name
+    Parameters
+    ----------
+    name : str
+        a versioned or unversioned package name
     '''
     shortname, version = _splitname(name)
     return Package(find_package_file(shortname), version)
@@ -1015,7 +1077,10 @@ def current_version(name):
     '''
     get the currently set version for the given pkg, or None if it is not set
 
-    :param name: a versioned or unversioned package name
+    Parameters
+    ----------
+    name : str
+        a versioned or unversioned package name
     '''
     return _current_data(name)[0]
 
@@ -1168,7 +1233,10 @@ class Package(BasePackage):
         '''
         instantiate a package from a package file.
 
-        :param version: if version is not provided, the default version is
+        Parameters
+        ----------
+        version : str
+            if version is not provided, the default version is
             automatically determined from the `default-version` configuration
             variable in the package header. If that is not set and the lists of the
             `versions` configuration variable is exactly one, that value is used,
@@ -1211,14 +1279,21 @@ class Package(BasePackage):
         version = self._version
         if not version:
             version = self.default_version
+        if version not in self.versions and version in self.aliases:
+            # expand aliases
+            version = self.aliases[version]
         if version not in self.versions:
-            try:
-                # expand aliases
-                version = self.aliases[version]
-            except KeyError:
+            regex = self.version_regex
+            if (not regex
+                    or not self.version_from_regex
+                    or not regex.match(version)):
                 if not self.explicit_version:
                     version = '%s (default)' % version
-                raise InvalidPackageVersion(self.name, version, '(valid choices are %s)' % ', '.join(self.versions))
+                ver_choices = ', '.join(list_package_versions(self,
+                                                              aliases=True,
+                                                              regexp=True))
+                raise InvalidPackageVersion(self.name, version,
+                                            '(valid choices are %s)' % ver_choices)
         return version
     
     @propertycache
@@ -1238,6 +1313,11 @@ class Package(BasePackage):
         '''
         read the header of a package file into a python ConfigParser
         '''
+        # Would like to use defaults of ConfigParser, ie:
+        #    config = ConfigParser({'main.versions-from-regex':False})
+        # ...but doing so ALSO sets the the default value for main.version to
+        # False... probably I just don't understand how to use the defaults...
+        # but can't find good docs / examples...
         config = ConfigParser()
         try:
             lines = _parse_header(self.file)
@@ -1269,6 +1349,9 @@ class Package(BasePackage):
             versions = [k.strip() for k, v in self.config.items('versions')]
         except NoSectionError:
             raise PackageError(self.name, 'no [versions] section in package header')
+        regexp = self.version_regex
+        if not regexp:
+            regexp = self.VERSION_RE
         valid = []
         for version in versions:
             match = self.VERSION_RE.match(version)
@@ -1325,6 +1408,19 @@ class Package(BasePackage):
                 result.append((self.name + alias_suffix, 
                                _joinname(self.name, self.aliases.get(pkg_version, pkg_version))))
         return result
+
+    @propertycache
+    def version_regex(self):
+        if self.config.has_option('main', 'version-regex'):
+            return re.compile('(?:' + self.config.get('main', 'version-regex') +')$')
+        return None
+    
+    @propertycache
+    def version_from_regex(self):
+        if (self.version_regex and
+                self.config.has_option('main', 'versions-from-regex')):
+            return self.config.getboolean('main', 'versions-from-regex')
+        return False
                     
     @propertycache
     def version_parts(self):
@@ -1341,13 +1437,14 @@ class Package(BasePackage):
 
         the Package.version_parts would contain (1,5,1)
         '''
-        if self.config.has_option('main', 'version-regex'):
-            reg = self.config.get('main', 'version-regex')+'$'
+        reg = self.version_regex
+        if reg:
             try:
-                return re.match(reg, self.version).groups()
+                return reg.match(self.version).groups()
             except AttributeError:
                 logger.warn('could not split version using version-regex %r' % reg)
-
+        return None
+                
     @propertycache
     def executable(self):
         '''
@@ -1686,10 +1783,14 @@ class Session():
 
 def setpkg(packages, force=False, update_pypath=False, pid=None):
     """
-    :param update_pythonpath: set to True if changes to PYTHONPATH should be
+    Parameters
+    ----------
+    update_pythonpath : bool
+        set to True if changes to PYTHONPATH should be
         reflected in sys.path
         (obselete - ignored - PYTHONPATH changes are always reflected in sys.path)
-    :param force: set to True if package should be re-run (unloaded, then
+    force : bool 
+        set to True if package should be re-run (unloaded, then
         loaded again) if already loaded
     """
     logger.debug('setpkg %s' % ([force, update_pypath, pid, sys.executable]))
@@ -1703,10 +1804,14 @@ def setpkg(packages, force=False, update_pypath=False, pid=None):
 
 def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
     """
-    :param update_pythonpath: set to True if changes to PYTHONPATH should be
+    Parameters
+    ----------
+    update_pythonpath : bool
+        set to True if changes to PYTHONPATH should be
         reflected in sys.path
         (obselete - ignored - PYTHONPATH changes are always reflected in sys.path)
-    :param force: set to True if package should be re-run (unloaded, then
+    force : bool
+        set to True if package should be re-run (unloaded, then
         loaded again) if already loaded
     """
     if isinstance(packages, basestring):
