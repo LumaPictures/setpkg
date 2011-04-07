@@ -350,7 +350,7 @@ sh = logging.StreamHandler()
 if LOG_LVL_VAR in os.environ:
     sh.setLevel(getattr(logging, os.environ[LOG_LVL_VAR]))
 else:
-    sh.setLevel(logging.WARN)
+    sh.setLevel(logging.INFO)
 sformatter = logging.Formatter("%(message)s")
 sh.setFormatter(sformatter)
 logger.addHandler(sh)
@@ -1494,26 +1494,51 @@ class SessionStorage(object):
     
     Actual implentation should subclass from this.
     '''
+    # Holds the session's pid
+    SESSION_VAR = 'SETPKG_SESSION'
+    
     def __init__(self, session):
-        self.session = session
-
-    def initialize_data(self):
-        '''Used to initialize the stored data 
-        
-        Not run from inside of __init__, because may want to delay
-        initialization until needed, and this should only be run if
-        initialization of setpkg data has never happened for this process
-        before.
-        
-        Will create a fake 'setpkg' package to store certain setpkg environment
-        variables, and return this package
-        
-        This must be run, but is up to subclass implementers to ensure that it
-        is.
+        '''Generally, this should not be overridden - override pre_init
+        initialize_data, or post_init instead
         '''
+        self.session = session
+        self.pre_init()
+        if self.init_type() != 'done':
+            self.initialize_data()
+        self.post_init()
+            
+    def init_type(self):
+        '''Returns 'new' if no setpkg has been run in this or any parent process,
+        'child' if setpkg has not been run in this process, but has in a parent,
+        or 'done' if setpkg has been run in this process
+        ''' 
+        pid = os.environ.get(self.SESSION_VAR)
+        if not pid:
+            return 'new'
+        elif pid != self.session.pid:
+            return 'child'
+        else:
+            return 'done'
+            
+    def initialize_data(self):
+        '''Does whatever needs to be done to create 'new' session data
+        
+        called the first time data is needed within a given process
+        
+        returns the fake 'setpkg' package created
+        '''
+        logger.info('running initialize_data')
         pkg = FakePackage('setpkg', version='2.0')
         self.session._added.append(pkg)
+        getattr(pkg._environ, self.SESSION_VAR).set(self.session.pid)
         return pkg
+    
+    def pre_init(self):
+        pass
+
+    def post_init(self):
+        pass
+
     
     def __getitem__(self, key):
         raise NotImplementedError
@@ -1525,6 +1550,11 @@ class SessionStorage(object):
         raise NotImplementedError
 
 class SessionShelf(SessionStorage):
+    '''Persistent storage using 'shelf' files on disk
+    '''
+    SESSION_PREFIX = 'setpkg_session_'
+    SHELF_FILE_VAR = 'SETPKG_SHELF'
+
     def __getitem__(self, key):
         return self.shelf[key]
     def __setitem__(self, key, val):
@@ -1534,27 +1564,28 @@ class SessionShelf(SessionStorage):
     def __contains__(self, key):
         return key in self.shelf
     
+    def pre_init(self):
+        self.shelf = self._open_shelf()
+    
     def initialize_data(self):
-        # Must be run after self.filename is set
         pkg = super(SessionShelf, self).initialize_data()
-        pkg._environ.SETPKG_SESSION.set(self.filename)
+        self.shelf = self._open_shelf()
+        getattr(pkg._environ, self.SHELF_FILE_VAR).set(self.filename)
+        logger.info('environ[SHELF_FILE_VAR]: %s' % os.environ[self.SHELF_FILE_VAR])
         return pkg
     
     def _open_shelf(self, protocol=None, writeback=False):
         """
         """
         pid = self.session.pid
-        SESSION_PREFIX = 'setpkg_session_'
-        new_data = False
-        if 'SETPKG_SESSION' in os.environ:
-            filename = os.environ['SETPKG_SESSION']
+        if self.SHELF_FILE_VAR in os.environ:
+            filename = os.environ[self.SHELF_FILE_VAR]
             # see if our pid differs from the existing
             old_pid = filename.rsplit('_')[-1]
             if pid != old_pid:
-                new_data = True
                 # make a unique copy for us
                 old_filename = filename
-                filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
+                filename = os.path.join(tempfile.gettempdir(), (self.SESSION_PREFIX + pid))
                 logger.info('copying cache from %s to %s' % (old_filename, filename))
                 # depending on the underlying database type used by shelve,
                 # the file may actually be several files
@@ -1572,23 +1603,18 @@ class SessionShelf(SessionStorage):
             flag = 'w'
             logger.info( "opening existing session %s" % filename )
         else:
-            new_data = True
-            filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
+            filename = os.path.join(tempfile.gettempdir(), (self.SESSION_PREFIX + pid))
             # create a new shelf
             flag = 'n'
             logger.info( "opening new session %s" % filename )
 
         self.filename = filename
-        if new_data:
-            self.initialize_data()
         return shelve.DbfilenameShelf(filename, flag, protocol, writeback)
 
-    @propertycache
-    def shelf(self):
-        return self._open_shelf()
-
 class SessionEnv(SessionStorage):
-    pass
+    '''Persistent storage using environment variables
+    '''
+    
 
 #===============================================================================
 # Session
