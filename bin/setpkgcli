@@ -147,7 +147,7 @@ def info(args):
         package = get_package(args.package[0])
     else:
         session = Session(pid=args.pid)
-        package = session.shelf[shortname]
+        package = session.storage[shortname]
 
     def detail(section, *data, **colors):
         section_color = colors.get('section_color', 'cyan')

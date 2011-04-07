@@ -450,10 +450,9 @@ def executableOutput(exeAndArgs, convertNewlines=True, stripTrailingNewline=True
         return cmdOutput, cmdProcess.returncode
     return cmdOutput
 
-
-#------------------------------------------------
+#===============================================================================
 # Shell Classes
-#------------------------------------------------
+#===============================================================================
 
 class Shell(object):
     def __init__(self, **kwargs):
@@ -544,9 +543,9 @@ def get_shell_class(shell_name):
         shell_name = get_shell_name()
     return shells[os.path.basename(shell_name)]
 
-#------------------------------------------------
+#===============================================================================
 # Environment Classes
-#------------------------------------------------
+#===============================================================================
 
 class EnvironSwapper(object):
     '''Temporarily sets os.environ to use a 'fake' environment
@@ -861,9 +860,9 @@ class EnvironmentVariable(object):
         else:
             return []
 
-#------------------------------------------------
+#===============================================================================
 # Package Files
-#------------------------------------------------
+#===============================================================================
 
 class PackageError(ValueError):
     def __init__(self, package, detail):
@@ -1485,17 +1484,123 @@ class Package(BasePackage):
     def environ(self):
         return dict(self._environ.__dict__['_environ'])
 
-#------------------------------------------------
-# Session
-#------------------------------------------------
+#===============================================================================
+# SessionStorage
+#===============================================================================
+class SessionStorage(object):
+    '''Base class for storing persistent session data.
+    
+    Should have a dictionary-like interface
+    
+    Actual implentation should subclass from this.
+    '''
+    def __init__(self, session):
+        self.session = session
 
-class Session():
+    def initialize_data(self):
+        '''Used to initialize the stored data 
+        
+        Not run from inside of __init__, because may want to delay
+        initialization until needed, and this should only be run if
+        initialization of setpkg data has never happened for this process
+        before.
+        
+        Will create a fake 'setpkg' package to store certain setpkg environment
+        variables, and return this package
+        
+        This must be run, but is up to subclass implementers to ensure that it
+        is.
+        '''
+        pkg = FakePackage('setpkg', version='2.0')
+        self.session._added.append(pkg)
+        return pkg
+    
+    def __getitem__(self, key):
+        raise NotImplementedError
+    def __setitem__(self, key, val):
+        raise NotImplementedError
+    def __delitem__(self, key):
+        raise NotImplementedError
+    def __contains__(self, key):
+        raise NotImplementedError
+
+class SessionShelf(SessionStorage):
+    def __getitem__(self, key):
+        return self.shelf[key]
+    def __setitem__(self, key, val):
+        self.shelf[key] = val
+    def __delitem__(self, key):
+        del self.shelf[key]
+    def __contains__(self, key):
+        return key in self.shelf
+    
+    def initialize_data(self):
+        # Must be run after self.filename is set
+        pkg = super(SessionShelf, self).initialize_data()
+        pkg._environ.SETPKG_SESSION.set(self.filename)
+        return pkg
+    
+    def _open_shelf(self, protocol=None, writeback=False):
+        """
+        """
+        pid = self.session.pid
+        SESSION_PREFIX = 'setpkg_session_'
+        new_data = False
+        if 'SETPKG_SESSION' in os.environ:
+            filename = os.environ['SETPKG_SESSION']
+            # see if our pid differs from the existing
+            old_pid = filename.rsplit('_')[-1]
+            if pid != old_pid:
+                new_data = True
+                # make a unique copy for us
+                old_filename = filename
+                filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
+                logger.info('copying cache from %s to %s' % (old_filename, filename))
+                # depending on the underlying database type used by shelve,
+                # the file may actually be several files
+                for suffix in ['', '.bak', '.dat', '.dir', '.db']:
+                    full_old_filename = old_filename + suffix
+                    if os.path.exists(full_old_filename):
+                        # can have some permissions issues (ie, with chmod)
+                        # if the file already exists... make life easier and
+                        # just delete it
+                        full_new_filename = filename + suffix
+                        if os.path.isfile(full_new_filename):
+                            os.remove(full_new_filename)
+                        shutil.copy(full_old_filename, full_new_filename)
+            # read an existing shelf
+            flag = 'w'
+            logger.info( "opening existing session %s" % filename )
+        else:
+            new_data = True
+            filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
+            # create a new shelf
+            flag = 'n'
+            logger.info( "opening new session %s" % filename )
+
+        self.filename = filename
+        if new_data:
+            self.initialize_data()
+        return shelve.DbfilenameShelf(filename, flag, protocol, writeback)
+
+    @propertycache
+    def shelf(self):
+        return self._open_shelf()
+
+class SessionEnv(SessionStorage):
+    pass
+
+#===============================================================================
+# Session
+#===============================================================================
+
+class Session(object):
     '''
     A persistent session that manages the adding and removing of packages.
 
-    The session contains a python shelf that pickles the Package classes of the
-    active packages.
-
+    Utilizes a SessionStorage class to handle serializing / loading / saving
+    of persistant data.
+    
     When adding a package, if the requested version of the package has not yet
     been set, the .pykg file is executed in a special python environment created
     by the session.
@@ -1512,13 +1617,14 @@ class Session():
         - contents of the builtin `platform` module (equivalent of `from platform import *`)
         - contents of `setpkgutil` module, if it exists
     '''
-    def __init__(self, pid=None, protocol=2):
+    def __init__(self, pid=None, protocol=2, storage_class=SessionShelf):
         self._added = []
         self._removed = []
         self.out = sys.stderr
         self.pid = pid if pid else _getppid()
         self.filename = None
-
+        self.storage_class = storage_class
+        
     def __enter__(self):
         #logger.debug( "new session %s" % self.filename )
         return self
@@ -1526,56 +1632,6 @@ class Session():
     def __exit__(self, type, value, traceback):
         #logger.debug('session closed')
         self.close()
-
-    def _open_shelf(self, protocol=None, writeback=False, pid=None):
-        """
-        """
-        SESSION_PREFIX = 'setpkg_session_'
-        if 'SETPKG_SESSION' in os.environ:
-            filename = os.environ['SETPKG_SESSION']
-            # see if our pid differs from the existing
-            old_pid = filename.rsplit('_')[-1]
-            if pid != old_pid:
-                # make a unique copy for us
-                old_filename = filename
-                filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
-                logger.info('copying cache from %s to %s' % (old_filename, filename))
-                # depending on the underlying database type used by shelve,
-                # the file may actually be several files
-                for suffix in ['', '.bak', '.dat', '.dir', '.db']:
-                    full_old_filename = old_filename + suffix 
-                    if os.path.exists(full_old_filename):
-                        # can have some permissions issues (ie, with chmod)
-                        # if the file already exists... make life easier and
-                        # just delete it
-                        full_new_filename = filename + suffix
-                        if os.path.isfile(full_new_filename):
-                            os.remove(full_new_filename)
-                        shutil.copy(full_old_filename, full_new_filename)
-                pkg = FakePackage('setpkg', version='2.0')
-                pkg._environ.SETPKG_SESSION.set(filename)
-                self._added.append(pkg)
-
-            # read an existing shelf
-            flag = 'w'
-            logger.info( "opening existing session %s" % filename )
-        else:
-            filename = os.path.join(tempfile.gettempdir(), (SESSION_PREFIX + pid))
-
-            # create a new shelf
-            flag = 'n'
-            logger.info( "opening new session %s" % filename )
-
-            pkg = FakePackage('setpkg', version='2.0')
-            pkg._environ.SETPKG_SESSION.set(filename)
-            self._added.append(pkg)
-
-        self.filename = filename
-        return shelve.DbfilenameShelf(filename, flag, protocol, writeback)
-
-    @propertycache
-    def shelf(self):
-        return self._open_shelf(pid=self.pid)
 
     def _status(self, action, package, symbol=' ', depth=0):
         #prefix = '   ' * depth + '[%s]  ' % symbol
@@ -1726,7 +1782,7 @@ class Session():
 
         del package.versions
         del package.config
-        self.shelf[package.name] = package
+        self.storage[package.name] = package
         
         if reloading:
             # if we just reloaded this package, also reload the dependents
@@ -1745,7 +1801,7 @@ class Session():
         curr_version = current_version(shortname)
         if curr_version is None:
             raise PackageError(shortname, "package is not currently set")
-        package = self.shelf[shortname]
+        package = self.storage[shortname]
         if version:
             if package.version != version:
                 raise InvalidPackageVersion(package, version,
@@ -1758,7 +1814,7 @@ class Session():
         if not reloading:
             self._status('removing', package.fullname, '-', depth)
         
-        del self.shelf[shortname]
+        del self.storage[shortname]
         self._removed.append(package)
 
         if recurse:
@@ -1773,6 +1829,10 @@ class Session():
                     self.remove_package(depend.fullname, depth=depth+1)
         return package
 
+    @propertycache
+    def storage(self):
+        return self.storage_class(self)
+            
     @property
     def added(self):
         return self._added
@@ -1832,3 +1892,4 @@ def list_active_packages(package=None, pid=None):
             return []
     else:
         return [_joinname(pkg, versions[pkg]) for pkg in sorted(versions.keys())]
+
