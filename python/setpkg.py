@@ -350,7 +350,7 @@ sh = logging.StreamHandler()
 if LOG_LVL_VAR in os.environ:
     sh.setLevel(getattr(logging, os.environ[LOG_LVL_VAR]))
 else:
-    sh.setLevel(logging.INFO)
+    sh.setLevel(logging.WARN)
 sformatter = logging.Formatter("%(message)s")
 sh.setFormatter(sformatter)
 logger.addHandler(sh)
@@ -1527,7 +1527,6 @@ class SessionStorage(object):
         
         returns the fake 'setpkg' package created
         '''
-        logger.info('running initialize_data')
         pkg = FakePackage('setpkg', version='2.0')
         self.session._added.append(pkg)
         getattr(pkg._environ, self.SESSION_VAR).set(self.session.pid)
@@ -1571,7 +1570,6 @@ class SessionShelf(SessionStorage):
         pkg = super(SessionShelf, self).initialize_data()
         self.shelf = self._open_shelf()
         getattr(pkg._environ, self.SHELF_FILE_VAR).set(self.filename)
-        logger.info('environ[SHELF_FILE_VAR]: %s' % os.environ[self.SHELF_FILE_VAR])
         return pkg
     
     def _open_shelf(self, protocol=None, writeback=False):
