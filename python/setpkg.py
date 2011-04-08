@@ -317,6 +317,7 @@ import shutil
 import hashlib
 import inspect
 import fnmatch
+import binascii
 from collections import defaultdict
 from ConfigParser import RawConfigParser, ConfigParser, NoSectionError
 
@@ -1502,8 +1503,9 @@ class SessionStorage(object):
         initialize_data, or post_init instead
         '''
         self.session = session
+        self.setpkg_pkg = None
         self.pre_init()
-        if self.init_type() != 'done':
+        if self.needs_data_init():
             self.initialize_data()
         self.post_init()
             
@@ -1519,18 +1521,18 @@ class SessionStorage(object):
             return 'child'
         else:
             return 'done'
+        
+    def needs_data_init(self):
+        return True
             
     def initialize_data(self):
         '''Does whatever needs to be done to create 'new' session data
         
         called the first time data is needed within a given process
-        
-        returns the fake 'setpkg' package created
         '''
-        pkg = FakePackage('setpkg', version='2.0')
-        self.session._added.append(pkg)
-        getattr(pkg._environ, self.SESSION_VAR).set(self.session.pid)
-        return pkg
+        self.setpkg_pkg = FakePackage('setpkg', version='2.0')
+        self.session._added.append(self.setpkg_pkg)
+        getattr(self.setpkg_pkg._environ, self.SESSION_VAR).set(self.session.pid)
     
     def pre_init(self):
         pass
@@ -1565,12 +1567,14 @@ class SessionShelf(SessionStorage):
     
     def pre_init(self):
         self.shelf = self._open_shelf()
+
+    def needs_data_init(self):
+        return self.init_type() != 'done'
     
     def initialize_data(self):
-        pkg = super(SessionShelf, self).initialize_data()
+        super(SessionShelf, self).initialize_data()
         self.shelf = self._open_shelf()
-        getattr(pkg._environ, self.SHELF_FILE_VAR).set(self.filename)
-        return pkg
+        getattr(self.setpkg_pkg._environ, self.SHELF_FILE_VAR).set(self.filename)
     
     def _open_shelf(self, protocol=None, writeback=False):
         """
@@ -1612,7 +1616,56 @@ class SessionShelf(SessionStorage):
 class SessionEnv(SessionStorage):
     '''Persistent storage using environment variables
     '''
+    SESSION_DATA_VAR = 'SETPKG_SESSION_DATA'
     
+    # Keep this a set value, so if data is pickled by one version of python and
+    # read by another, we're ok... just need to make sure that this version is
+    # available to all python versions that may run setpkg
+    PICKLE_DATA_VER = 2
+    
+    def __getitem__(self, key):
+        return self.read_dict()[key]
+    def __setitem__(self, key, val):
+        data = self.read_dict()
+        data[key] = val
+        self.write_dict(data)
+    def __delitem__(self, key):
+        data = self.read_dict()
+        del data[key]
+        self.write_dict(data)
+    def __contains__(self, key):
+        return key in self.read_dict()
+
+    def initialize_data(self):
+        logger.info('SessionEnv.initialize_data')
+        super(SessionEnv, self).initialize_data()
+        if self.SESSION_DATA_VAR not in os.environ:
+            self.write_dict({'original':self.session.pid})
+        else:
+            logger.info('original pid: %s' % self.read_dict()['original'])
+        
+    def read_dict(self):
+        rawstr = os.environ.get(self.SESSION_DATA_VAR)
+        if not rawstr:
+            return {'original':self.session.pid}
+        return pickle.loads(self.alpha_to_binary(rawstr))
+    
+    def write_dict(self, newdict):
+        rawstr = self.binary_to_alpha(pickle.dumps(newdict, protocol=self.PICKLE_DATA_VER))
+        getattr(self.setpkg_pkg._environ, self.SESSION_DATA_VAR).set(rawstr)
+
+    # Even though pickle.loads/dumps give strings which we could theoretically
+    # simply stick into environment variables straight up, we will need to
+    # eventually echo all set commands out to the shell, and quoting a string
+    # with lots of weird characters (even nulls!) would be a nightmare.
+    # Therefore, we encode binary strings to strings with just alpha-numeric
+    # characters
+    def alpha_to_binary(self, alphastr):
+        return binascii.unhexlify(alphastr)
+    
+    def binary_to_alpha(self, binarystr):
+        return binascii.hexlify(binarystr)
+        
 
 #===============================================================================
 # Session
@@ -1641,7 +1694,7 @@ class Session(object):
         - contents of the builtin `platform` module (equivalent of `from platform import *`)
         - contents of `setpkgutil` module, if it exists
     '''
-    def __init__(self, pid=None, protocol=2, storage_class=SessionShelf):
+    def __init__(self, pid=None, protocol=2, storage_class=SessionEnv):
         self._added = []
         self._removed = []
         self.out = sys.stderr
