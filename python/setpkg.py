@@ -1637,12 +1637,9 @@ class SessionEnv(SessionStorage):
         return key in self.read_dict()
 
     def initialize_data(self):
-        logger.info('SessionEnv.initialize_data')
         super(SessionEnv, self).initialize_data()
         if self.SESSION_DATA_VAR not in os.environ:
             self.write_dict({'original':self.session.pid})
-        else:
-            logger.info('original pid: %s' % self.read_dict()['original'])
         
     def read_dict(self):
         rawstr = os.environ.get(self.SESSION_DATA_VAR)
