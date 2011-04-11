@@ -376,7 +376,7 @@ class propertycache(object):
     def __init__(self, func):
         self.func = func
         self.name = func.__name__
-    def __get__(cls, self, type=None):
+    def __get__(cls, self, type=None): #@NoSelf
         result = cls.func(self)
         setattr(self, cls.name, result)
         return result
@@ -568,6 +568,7 @@ class EnvironSwapper(object):
         if environ is None:
             environ = dict(os.environ)
         self.oldEnviron = os.environ
+        self.newEnviron = environ
     
     def __enter__(self):
         self.oldEnviron = os.environ
@@ -612,58 +613,77 @@ def _ntpath(path):
 def _posixpath(path):
     return posixpath.sep.join(path.split(ntpath.sep))
 
-def prependenv(name, value, expand=True, no_dupes=False, root=None):
-    if expand:
-        value = _expand(value, strip_quotes=True)
-    value = _abspath(root, value)
-    if name not in os.environ:
-        os.environ[name] = value
+def _prep_env_args(value, expand, root, environ):
+    if value is not None:
+        if isinstance(value, EnvironmentVariable):
+            value = value.value()
+        else:
+            value = str(value)
+        if expand:
+            value = _expand(value, strip_quotes=True, environ=environ)
+        value = _abspath(root, value)
+    
+    if environ is None:
+        environ = os.environ
+    return value, environ
+
+def prependenv(name, value, expand=True, no_dupes=False, root=None, environ=None):
+    value, environ =  _prep_env_args(value, expand, root, environ)
+
+    if name not in environ:
+        environ[name] = value
     else:
-        current_value = os.environ[name]
+        current_value = environ[name]
         parts = _split(current_value)
         if no_dupes:
             if expand:
-                expanded_parts = [_expand(x) for x in parts]
+                expanded_parts = [_expand(x, environ=environ) for x in parts]
             else:
                 expanded_parts = parts
             if value not in expanded_parts:
                 parts.insert(0, value)
                 new_value = _join(parts)
-                os.environ[name] = new_value
+                environ[name] = new_value
         else:
             parts.insert(0, value)
             new_value = _join(parts)
-            os.environ[name] = new_value
+            environ[name] = new_value
+           
+    # update_pypath
+    if name == 'PYTHONPATH':
+        sys.path.insert(0, value)            
     #print "prepend", name, value
     return value
 
-def appendenv(name, value, expand=True, no_dupes=False, root=None):
-    if expand:
-        value = _expand(value, strip_quotes=True)
-    value = _abspath(root, value)
+def appendenv(name, value, expand=True, no_dupes=False, root=None, environ=None):
+    value, environ =  _prep_env_args(value, expand, root, environ)
 
-    if name not in os.environ:
-        os.environ[name] = value
+    if name not in environ:
+        environ[name] = value
     else:
-        current_value = os.environ[name]
+        current_value = environ[name]
         parts = _split(current_value)
         if no_dupes:
             if expand:
-                expanded_parts = [_expand(x) for x in parts]
+                expanded_parts = [_expand(x, environ=environ) for x in parts]
             else:
                 expanded_parts = parts
             if value not in expanded_parts:
                 parts.append(value)
                 new_value = _join(parts)
-                os.environ[name] = new_value
+                environ[name] = new_value
         else:
             parts.append(value)
             new_value = _join(parts)
-            os.environ[name] = new_value
-    #print "prepend", name, value
+            environ[name] = new_value
+            
+    # update_pypath
+    if name == 'PYTHONPATH':
+        sys.path.append(value)
+    #print "append", name, value
     return value
 
-def prependenvs(name, value, root=None):
+def prependenvs(name, value, root=None, environ=None):
     '''
     like prependenv, but in addition to setting single values, it also allows
     value to be a separated list of values (foo:bar) or a python list
@@ -674,39 +694,45 @@ def prependenvs(name, value, root=None):
         parts = _split(value)
     # traverse in reverse order, so precedence given is maintained
     for part in reversed(parts):
-        prependenv(name, part, root=root)
+        prependenv(name, part, root=root, environ=environ)
     return value
 
-def setenv(name, value, expand=True, root=None):
-    if expand:
-        value = _expand(value, strip_quotes=True)
-    value = _abspath(root, value)
+def setenv(name, value, expand=True, root=None, environ=None):
+    value, environ =  _prep_env_args(value, expand, root, environ)
 
-    os.environ[name] = value
+    environ[name] = value
     #print "set", name, value
     return value
 
-def popenv(name, value, expand=True, root=None):
-    if expand:
-        value = _expand(value, strip_quotes=True)
-    value = _abspath(root, value)
+def unsetenv(name, environ=None):
+    environ =  _prep_env_args(None, False, None, environ)[1]
+    return environ.pop(name)
+
+def popenv(name, value, expand=True, root=None, environ=None, from_end=False):
+    value, environ =  _prep_env_args(value, expand, root, environ)
 
     try:
-        current_value = os.environ[name]
+        current_value = environ[name]
     except KeyError:
         return
     else:
         parts = _split(current_value)
-        try:
-            index = parts.index(value)
-        except ValueError:
-            return
+        if from_end:
+            reverse_parts = list(reversed(parts))
+            try:
+                index = -( reverse_parts.index(value) + 1 )
+            except ValueError:
+                return
         else:
-            if len(parts) == 1:
-                del os.environ[name]
-            else:
-                parts.pop(index)
-                os.environ[name] = _join(parts)
+            try:
+                index = parts.index(value)
+            except ValueError:
+                return
+        if len(parts) == 1:
+            del environ[name]
+        else:
+            parts.pop(index)
+            environ[name] = _join(parts)
     #print "popenv", name, value
     return value
 
@@ -715,58 +741,72 @@ class Environment(object):
     provides attribute-style access to an environment dictionary.
 
     combined with EnvironmentVariable class, tracks changes to the environment
+    
+    Always linked to a package, since it tracks changes to the environment that
+    a given package makes.
     '''
-#    def __init__(self, environ=None):
-#        self.__dict__['environ'] = environ if environ is not None else os.environ
-#
-#    def __getattr__(self, attr):
-#        return EnvironmentVariable(attr, self.environ)
-
-    def __init__(self, root=None):
-        self.__dict__['_environ'] = defaultdict(list)
+    def __init__(self, package, root=None):
+        self.__dict__['_package'] = package
         # use posixpath internally
         self.__dict__['_root'] = _posixpath(root) if root else root
+        self.__dict__['_env_vars'] = {}
 
     def __getattr__(self, attr):
+        # For things like '__class__', for instance
         if attr.startswith('__') and attr.endswith('__'):
             try:
                 self.__dict__[attr]
             except KeyError:
                 raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
-        return EnvironmentVariable(attr, self.__dict__['_environ'], self.__dict__['_root'])
+        return self.__env__get__(attr)
+    
+    def __env__get__(self, attr):
+        env_vars = self.__dict__['_env_vars']
+        if 'attr' not in env_vars:
+            env_vars[attr] = EnvironmentVariable(attr, self)
+        return env_vars[attr]
 
-    # There's some code duplication between Environment.__setattr__ and
-    # EnvironmentVariable.set... going to leave it as is, assuming it's
-    # duplicated for speed reasons... just remember to edit both places
     def __setattr__(self, attr, value):
-        if isinstance(value, EnvironmentVariable):
-            if value.name == attr:
-                # makes no sense to set ourselves. most likely a result of:
-                # env.VAR += value
-                return
-            value = value.value()
-        else:
-            value = str(value)
-        self.__dict__['_environ'][attr] = [setenv(attr, value, self.__dict__['_root'])]
+        # For things like '__class__', for instance
+        if attr.startswith('__') and attr.endswith('__'):
+            super(Environment, self).__setattr__(attr, value)
+        self.__env__set__(attr, value)
+        
+    def __env__set__(self, attr, value):
+        if value is self:
+            # makes no sense to set ourselves. most likely a result of:
+            # env.VAR += value
+            return
+        self.__env__get__(attr).set(value)
+        
+    def __delattr__(self, attr):
+        # For things like '__class__', for instance
+        if attr.startswith('__') and attr.endswith('__'):
+            super(Environment, self).__delattr__(attr)
+        self.__env__unset__(attr)
+        
+    def __env__unset__(self, attr):
+        self.__env__get__(attr).unset()
+        del self.__dict__['environ'][attr]
 
     def __contains__(self, attr):
-        return attr in os.environ
+        return attr in self.environ
 
     def __str__(self):
-        return pprint.pformat(dict(os.environ))
+        return pprint.pformat(self.environ)
+    
         
-
 class EnvironmentVariable(object):
     '''
     class representing an environment variable
 
     combined with Environment class, tracks changes to the environment
     '''
-
-    def __init__(self, name, environ, root):
+    
+    def __init__(self, name, environ_obj):
         self._name = name
-        self._environ = environ
-        self._root = root
+        self._environ_obj = environ_obj
+        self._actions = []
 
     def __str__(self):
         return '%s = %s' % (self._name, self.value())
@@ -780,44 +820,35 @@ class EnvironmentVariable(object):
     @property
     def name(self):
         return self._name
+    
+    @property
+    def root(self):
+        return self._environ_obj.__dict__['root']
+    
+    @property
+    def environ(self):
+        return self._environ_obj.__dict__['_package'].environ
 
     def prepend(self, value, **kwargs):
-        if isinstance(value, EnvironmentVariable):
-            value = value.value()
-        kwargs['root'] = self._root
-        expanded_value = prependenv(self._name, value, **kwargs)
-        # track changes
-        self._environ[self._name].insert(0, expanded_value)
-
-        # update_pypath
-        if self.name == 'PYTHONPATH':
-            sys.path.insert(0, expanded_value)
-        return expanded_value
+        return self._actions.append(Prepend(self._environ_obj, self._name, value,
+                                           **kwargs))
 
     def append(self, value, **kwargs):
-        if isinstance(value, EnvironmentVariable):
-            value = value.value()
-        kwargs['root'] = self._root
-        expanded_value = appendenv(self._name, value, **kwargs)
-        # track changes
-        self._environ[self._name].append(expanded_value)
+        return self._actions.append(Append(self._environ_obj, self._name, value,
+                                          **kwargs))
 
-        # update_pypath
-        if self.name == 'PYTHONPATH':
-            sys.path.append(expanded_value)
-        return expanded_value
-
-    # There's some code duplication between Environment.__setattr__ and
-    # EnvironmentVariable.set... going to leave it as is, assuming it's
-    # duplicated for speed reasons... just remember to edit both places
     def set(self, value, **kwargs):
-        if isinstance(value, EnvironmentVariable):
-            value = value.value()
-        kwargs['root'] = self._root
-        expanded_value = setenv(self._name, value)
-        # track changes
-        self._environ[self._name] = [expanded_value]
-        return expanded_value
+        return self._actions.append(Set(self._environ_obj, self._name, value,
+                                       **kwargs))
+
+    def unset(self, **kwargs):
+        return self._actions.append(Set(self._environ_obj, self._name, None,
+                                       **kwargs))
+        
+    def pop(self, **kwargs):
+        return self._actions.append(Pop(self._environ_obj, self._name, None,
+                                        **kwargs))
+        
 
     def setdefault(self, value):
         '''
@@ -827,7 +858,7 @@ class EnvironmentVariable(object):
             return self.value()
         else:
             return self.set(value)
-
+        
     def __add__(self, value):
         '''
         append `value` to this variable's value.
@@ -851,7 +882,7 @@ class EnvironmentVariable(object):
         return os.path.join(self.value(), *value.split('/'))
 
     def value(self):
-        return os.environ.get(self._name, None)
+        return self.environ.get(self._name, None)
 
     def split(self):
         # FIXME: value could be None.  should we return empty list or raise an error?
@@ -860,6 +891,64 @@ class EnvironmentVariable(object):
             return _split(value)
         else:
             return []
+
+class Action(object):
+    '''Stores information about a change to an environment variable
+    
+    The changes are made when the action is created; to undo, call the undo
+    method
+    '''
+    def __init__(self, environ_obj, attr, val, **kwargs):
+        self._environ_obj = environ_obj
+        self.attr = attr
+        kwargs['environ'] = self._environ_obj.__dict__['_package'].environ
+        kwargs['root'] =self._environ_obj.__dict__['_root']
+        self.val = self._do_action(attr, val, **kwargs)
+        
+    def undo(self):
+        kwargs = {}
+        kwargs['environ'] = self._environ_obj.__dict__['_package'].environ
+        kwargs['root'] = self._environ_obj.__dict__['_root']
+        kwargs['expand'] = False
+        self._undo_action(self.attr, self.val, **kwargs)
+
+class Prepend(Action):
+    def _do_action(self, attr, val, **kwargs):
+        return prependenv(attr, val, **kwargs)
+    def _undo_action(self, attr, val, **kwargs):
+        popenv(attr, val, from_end=False, **kwargs)
+        
+class Append(Action):
+    def _do_action(self, attr, val, **kwargs):
+        return appendenv(attr, val, **kwargs)
+    def _undo_action(self, attr, val, **kwargs):
+        popenv(attr, val, from_end=True, **kwargs)
+        
+class Set(Action):
+    def _do_action(self, attr, val, **kwargs):
+        self.orig_val = kwargs['environ'].get(attr)
+        return setenv(attr, val, **kwargs)
+    def _undo_action(self, attr, val, **kwargs):
+        setenv(attr, self.orig_val, **kwargs)
+        
+# Unset is done by Set(attr, None)
+#
+#class Unset(Action):
+#    def _do_action(self, attr, val, **kwargs):
+#        return unsetenv(attr, val, environ=kwargs['environ'])
+#    def _undo_action(self, attr, val, **kwargs):
+#        setenv(attr, val, from_end=True, **kwargs)
+
+class Pop(Action):
+    def _do_action(self, attr, val, **kwargs):
+        self.from_end = kwargs.pop('from_end', False)
+        return popenv(attr, val, from_end=self.from_end, **kwargs)
+    def _undo_action(self, attr, val, **kwargs):
+        if self.from_end:
+            appendenv(attr, val, **kwargs)
+        else:
+            prependenv(attr, val, **kwargs)
+        
 
 #===============================================================================
 # Package Files
@@ -1044,7 +1133,7 @@ def list_package_versions(package=None, package_file=None,
     return versions
     
 
-def get_package(name):
+def get_package(name, session=None):
     '''
     find a package on SETPKG_PATH and return a Package class.
 
@@ -1054,15 +1143,17 @@ def get_package(name):
         a versioned or unversioned package name
     '''
     shortname, version = _splitname(name)
-    return Package(find_package_file(shortname), version)
+    return Package(find_package_file(shortname), version, session=session)
 
-def _current_data(name):
+def _current_data(name, environ=None):
     '''
     return the version and pykg file hash for the given pkg
     '''
+    if environ is None:
+        environ = os.environ
     shortname = _shortname(name)
     try:
-        data = os.environ[VER_PREFIX + shortname].split(META_SEP)
+        data = environ[VER_PREFIX + shortname].split(META_SEP)
     except KeyError:
         return (None, None)
     else:
@@ -1073,7 +1164,7 @@ def _current_data(name):
         else:
             raise PackageError(shortname, 'corrupted version data')
 
-def current_version(name):
+def current_version(name, environ=None):
     '''
     get the currently set version for the given pkg, or None if it is not set
 
@@ -1082,7 +1173,7 @@ def current_version(name):
     name : str
         a versioned or unversioned package name
     '''
-    return _current_data(name)[0]
+    return _current_data(name, environ=environ)[0]
 
 def is_pkg_set(name):
     '''
@@ -1092,38 +1183,49 @@ def is_pkg_set(name):
     version = current_version(name)
     if not version:
         return False
-    shortname, ver = _splitname(name)
+    ver = _splitname(name)[1]
     if ver:
         return version == ver
     else:
         return True
 
-def current_versions():
+def current_versions(environ=None):
     '''
     return a dictionary of shortname to version for all active packages
     '''
-    return dict([(k[len(VER_PREFIX):], os.environ[k].split(META_SEP)[0]) \
-                     for k in os.environ if k.startswith(VER_PREFIX)])
+    if environ is None:
+        environ = os.environ
+    return dict([(k[len(VER_PREFIX):], environ[k].split(META_SEP)[0]) \
+                     for k in environ if k.startswith(VER_PREFIX)])
 
-class FakePackage(object):
+class BasePackage(object):
+    def __init__(self, session=None, root=None):
+        if session is None:
+            session = Session()
+        self._session = session
+        self._environ_obj = Environment(self, root=root)
+    @property
+    def environ(self):
+        return self._session.environ
+    
+    def environ_vars(self):
+        return self._environ_obj.__dict__['_env_vars']
+            
+class FakePackage(BasePackage):
     '''
     A package that does not exist on disk
     '''
-    def __init__(self, name, version):
+    def __init__(self, name, version, session=None):
         self.name = name,
         self.version = version
         self.versions = [self.version]
-        self._environ = Environment()
-    @property
-    def environ(self):
-        return dict(self._environ.__dict__['_environ'])
+        super(FakePackage, self).__init__(session=session)
 
     @propertycache
     def hash(self):
         return _joinname(self.name, self.version)
 
-class BasePackage(object):
-
+class RealPackage(BasePackage):
     @property
     def fullname(self):
         return _joinname(self.name, self.version)
@@ -1138,9 +1240,10 @@ class BasePackage(object):
 
     def get_dependencies(self):
         var = 'SETPKG_DEPENDENCIES_%s' % self.name
-        val = os.environ.get(var, None)
+        val = self.environ.get(var, None)
         if val:
-            return [PackageInterface(pkg) for pkg in _split(val)]
+            return [PackageInterface(pkg, session=self._session)
+                    for pkg in _split(val)]
         else:
             return []
 
@@ -1152,7 +1255,8 @@ class BasePackage(object):
         of the current package
         '''
         try:
-            return [PackageInterface(name) for name in _split(os.environ['SETPKG_DEPENDENTS_%s' % self.name])]
+            return [PackageInterface(name, session=self._session)
+                    for name in _split(self.environ['SETPKG_DEPENDENTS_%s' % self.name])]
         except KeyError:
             return []
 
@@ -1170,25 +1274,27 @@ class BasePackage(object):
         '''
         try:
             return dict([_splitname(pkg) \
-                for pkg in _split(os.environ['SETPKG_DEPENDENCIES_%s' % self.name])])
+                for pkg in _split(self.environ['SETPKG_DEPENDENCIES_%s' % self.name])])
         except KeyError:
             return {}
 
     def required_version(self, package):
-        return PackageInterface(package).get_dependency_versions()[self.name]
+        return PackageInterface(package, session=self._session).get_dependency_versions()[self.name]
 
     def is_active(self):
-        return VER_PREFIX + self.name in os.environ
+        print "%s is_active: %s" % (self.name, VER_PREFIX + self.name in self.environ)
+        return VER_PREFIX + self.name in self.environ
 
     def __eq__(self, other):
         # use file instead?
         return (self.name, self.version) == (other.name, other.version)
 
-class PackageInterface(BasePackage):
+class PackageInterface(RealPackage):
     '''
     Represents an active package
     '''
-    def __init__(self, name):
+    def __init__(self, name, session=None):
+        super(PackageInterface, self).__init__(session=session)
         self.origname = name
         self.name, self._version = _splitname(name)
         # TODO: assert version
@@ -1199,7 +1305,7 @@ class PackageInterface(BasePackage):
     @propertycache
     def hash(self):
         try:
-            version, hash = os.environ[VER_PREFIX + self.name].split(META_SEP)
+            version, hash = self.environ[VER_PREFIX + self.name].split(META_SEP)
         except KeyError:
             # TODO: different error
             raise PackageRemovedError(self.name)
@@ -1209,7 +1315,7 @@ class PackageInterface(BasePackage):
     @propertycache
     def version(self):
         try:
-            version, hash = os.environ[VER_PREFIX + self.name].split(META_SEP)
+            version, hash = self.environ[VER_PREFIX + self.name].split(META_SEP)
         except KeyError:
             raise PackageRemovedError(self.name)
         
@@ -1223,13 +1329,13 @@ class PackageInterface(BasePackage):
         var = 'SETPKG_DEPENDENTS_%s' % self.name
         prependenv(var, package.name)
 
-class Package(BasePackage):
+class Package(RealPackage):
     '''
     Class representing a .pykg package file on disk.
     '''
     # allowed characters: letters, numbers, period, dash, underscore
     VERSION_RE = re.compile('[a-zA-Z0-9\.\-_]+$')
-    def __init__(self, file, version=None):
+    def __init__(self, file, version=None, session=None):
         '''
         instantiate a package from a package file.
 
@@ -1249,7 +1355,7 @@ class Package(BasePackage):
         self._parent = None
         self._dependencies = []
         self._dependents = []
-        self._environ = Environment(parent)
+        super(Package, self).__init__(session=session, root=parent)
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.file, self.version)
@@ -1298,7 +1404,7 @@ class Package(BasePackage):
     
     @propertycache
     def default_version(self):
-        version = os.environ.get('SETPKG_%s_DEFAULT_VERSION' % self.name.upper())
+        version = self.environ.get('SETPKG_%s_DEFAULT_VERSION' % self.name.upper())
         if not version:
             if self.config.has_option('main', 'default-version'):
                 version = self.config.get('main', 'default-version')
@@ -1479,11 +1585,7 @@ class Package(BasePackage):
         return self._read_packagelist('subs')
 
     def get_dependencies(self):
-        return [ PackageInterface(pkg) for pkg in self._read_packagelist('requires')]
-        
-    @property
-    def environ(self):
-        return dict(self._environ.__dict__['_environ'])
+        return [ PackageInterface(pkg, session=self._session) for pkg in self._read_packagelist('requires')]
 
 #===============================================================================
 # SessionStorage
@@ -1514,7 +1616,7 @@ class SessionStorage(object):
         'child' if setpkg has not been run in this process, but has in a parent,
         or 'done' if setpkg has been run in this process
         ''' 
-        pid = os.environ.get(self.SESSION_VAR)
+        pid = self.session.environ.get(self.SESSION_VAR)
         if not pid:
             return 'new'
         elif pid != self.session.pid:
@@ -1530,9 +1632,10 @@ class SessionStorage(object):
         
         called the first time data is needed within a given process
         '''
-        self.setpkg_pkg = FakePackage('setpkg', version='2.0')
+        self.setpkg_pkg = FakePackage('setpkg', version='2.0',
+                                      session=self.session)
         self.session._added.append(self.setpkg_pkg)
-        getattr(self.setpkg_pkg._environ, self.SESSION_VAR).set(self.session.pid)
+        getattr(self.setpkg_pkg._environ_obj, self.SESSION_VAR).set(self.session.pid)
     
     def pre_init(self):
         pass
@@ -1574,14 +1677,15 @@ class SessionShelf(SessionStorage):
     def initialize_data(self):
         super(SessionShelf, self).initialize_data()
         self.shelf = self._open_shelf()
-        getattr(self.setpkg_pkg._environ, self.SHELF_FILE_VAR).set(self.filename)
+        getattr(self.setpkg_pkg._environ_obj, self.SHELF_FILE_VAR).set(self.filename)
     
     def _open_shelf(self, protocol=None, writeback=False):
         """
         """
         pid = self.session.pid
-        if self.SHELF_FILE_VAR in os.environ:
-            filename = os.environ[self.SHELF_FILE_VAR]
+        environ = self.session.environ
+        if self.SHELF_FILE_VAR in environ:
+            filename = environ[self.SHELF_FILE_VAR]
             # see if our pid differs from the existing
             old_pid = filename.rsplit('_')[-1]
             if pid != old_pid:
@@ -1638,18 +1742,18 @@ class SessionEnv(SessionStorage):
 
     def initialize_data(self):
         super(SessionEnv, self).initialize_data()
-        if self.SESSION_DATA_VAR not in os.environ:
-            self.write_dict({'original':self.session.pid})
+        if self.SESSION_DATA_VAR not in self.session.environ:
+            self.write_dict({})
         
     def read_dict(self):
-        rawstr = os.environ.get(self.SESSION_DATA_VAR)
+        rawstr = self.session.environ.get(self.SESSION_DATA_VAR)
         if not rawstr:
-            return {'original':self.session.pid}
+            return {}
         return pickle.loads(self.alpha_to_binary(rawstr))
     
     def write_dict(self, newdict):
         rawstr = self.binary_to_alpha(pickle.dumps(newdict, protocol=self.PICKLE_DATA_VER))
-        getattr(self.setpkg_pkg._environ, self.SESSION_DATA_VAR).set(rawstr)
+        getattr(self.setpkg_pkg._environ_obj, self.SESSION_DATA_VAR).set(rawstr)
 
     # Even though pickle.loads/dumps give strings which we could theoretically
     # simply stick into environment variables straight up, we will need to
@@ -1691,21 +1795,42 @@ class Session(object):
         - contents of the builtin `platform` module (equivalent of `from platform import *`)
         - contents of `setpkgutil` module, if it exists
     '''
-    def __init__(self, pid=None, protocol=2, storage_class=SessionEnv):
+    _sessions = {}
+    
+    def __new__(cls, pid=None, protocol=2, storage_class=SessionEnv):
+        if pid is None:
+            pid = _getppid()
+        saved_session = cls._sessions.get(pid)
+        if saved_session is not None:
+            return saved_session
+
+        self = super(Session, cls).__new__(cls)
         self._added = []
         self._removed = []
         self.out = sys.stderr
         self.pid = pid if pid else _getppid()
         self.filename = None
         self.storage_class = storage_class
+        self._environ_dict = dict(os.environ)
+        self.entry_level = 0
+        
+        cls._sessions[pid] = self
+        return self
+        
+    @property
+    def environ(self):
+        return self._environ_dict
         
     def __enter__(self):
         #logger.debug( "new session %s" % self.filename )
+        self.entry_level += 1
         return self
 
     def __exit__(self, type, value, traceback):
-        #logger.debug('session closed')
-        self.close()
+        self.entry_level -= 1
+        if self.entry_level <= 0:
+            #logger.debug('session closed')
+            self.close()
 
     def _status(self, action, package, symbol=' ', depth=0):
         #prefix = '   ' * depth + '[%s]  ' % symbol
@@ -1723,7 +1848,7 @@ class Session(object):
         ''' 
         g = {}
         # environment
-        g['env'] = package._environ
+        g['env'] = package._environ_obj
 
         # version
         g['VERSION'] = package.version
@@ -1774,7 +1899,7 @@ class Session(object):
 
         # add ourself to the dependents of our dependencies (or did i just blow your mind?)
         for pkg in requirements:
-            shortname, version = _splitname(pkg)
+            shortname = _splitname(pkg)[0]
             var = getattr(g['env'], 'SETPKG_DEPENDENTS_%s' % (shortname,))
             var.append(package.name, expand=False)
         
@@ -1805,12 +1930,12 @@ class Session(object):
 
     def add_package(self, name, parent=None, force=False, depth=0):
         try:
-            package = get_package(name)
+            package = get_package(name, session=self)
         except PackageError, err:
             print err
             return
         shortname = package.name
-        curr = PackageInterface(shortname)
+        curr = PackageInterface(shortname, session=self)
         reloading = False
         if force:
             reloading = True
@@ -1881,12 +2006,12 @@ class Session(object):
                 raise InvalidPackageVersion(package, version,
                     "cannot be removed because it is not currently set (active version is %s)" % (package.version,))
 
-        for var, values in package.environ.iteritems():
-            for value in values:
-                popenv(var, value, expand=False)
-        
         if not reloading:
             self._status('removing', package.fullname, '-', depth)
+
+        for env_var in package.environ_vars().itervalues():
+            for action in reversed(env_var._actions):
+                action.undo()
         
         del self.storage[shortname]
         self._removed.append(package)
@@ -1914,6 +2039,22 @@ class Session(object):
     @property
     def removed(self):
         return self._removed
+    
+    def altered(self, other=None):
+        if other is None:
+            other = os.environ
+            
+        # we'll be modifying this, make a copy
+        other = dict(other)
+        changed = {}
+        for key, val in self.environ.iteritems():
+            old_val = other.pop(key, None)
+            if old_val != val:
+                changed[key] = val
+        # After popping off all vals in self.environ, other will have left
+        # only values that have been removed...
+        return changed, other
+        
 
 def setpkg(packages, force=False, update_pypath=False, pid=None):
     """
@@ -1934,7 +2075,7 @@ def setpkg(packages, force=False, update_pypath=False, pid=None):
     for name in packages:
         session.add_package(name, force=force)
 
-    return session.added, session.removed
+    return session
 
 def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
     """
@@ -1954,7 +2095,7 @@ def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
     for name in packages:
         session.remove_package(name, recurse=recurse)
 
-    return session.removed
+    return session
 
 def list_active_packages(package=None, pid=None):
     versions = current_versions()
