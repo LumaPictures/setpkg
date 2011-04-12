@@ -318,6 +318,7 @@ import hashlib
 import inspect
 import fnmatch
 import binascii
+import zlib
 from collections import defaultdict
 from ConfigParser import RawConfigParser, ConfigParser, NoSectionError
 
@@ -1775,10 +1776,10 @@ class SessionEnv(SessionStorage):
         rawstr = self.session.environ.get(self.SESSION_DATA_VAR)
         if not rawstr:
             return {}
-        return pickle.loads(self.alpha_to_binary(rawstr))
+        return self.binary_to_python(self.alpha_to_binary(rawstr))
     
     def write_dict(self, newdict):
-        rawstr = self.binary_to_alpha(pickle.dumps(newdict, protocol=self.PICKLE_DATA_VER))
+        rawstr = self.binary_to_alpha(self.python_to_binary(newdict))
         getattr(self.setpkg_pkg._environ_obj, self.SESSION_DATA_VAR).set(rawstr, undo=False)
 
     # Even though pickle.loads/dumps give strings which we could theoretically
@@ -1792,6 +1793,12 @@ class SessionEnv(SessionStorage):
     
     def binary_to_alpha(self, binarystr):
         return binascii.hexlify(binarystr)
+    
+    def python_to_binary(self, py_obj):
+        return zlib.compress(pickle.dumps(py_obj, protocol=self.PICKLE_DATA_VER))
+    
+    def binary_to_python(self, bin_obj):
+        return pickle.loads(zlib.decompress(bin_obj))
         
 
 #===============================================================================
