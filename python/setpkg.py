@@ -795,6 +795,14 @@ class Environment(object):
     def __str__(self):
         return pprint.pformat(self.environ)
     
+    def __getstate__(self):
+        # Clean out any _env_vars that we haven't acted on
+        vars = self.__dict__['_env_vars']
+        for name, var in vars.items():
+            if not var._actions:
+                vars.pop(name)
+        return self.__dict__
+    
         
 class EnvironmentVariable(object):
     '''
@@ -898,19 +906,21 @@ class Action(object):
     The changes are made when the action is created; to undo, call the undo
     method
     '''
-    def __init__(self, environ_obj, attr, val, **kwargs):
-        self._environ_obj = environ_obj
-        self.attr = attr
-        kwargs['environ'] = self._environ_obj.__dict__['_package'].environ
-        kwargs['root'] =self._environ_obj.__dict__['_root']
-        self.val = self._do_action(attr, val, **kwargs)
+    def __init__(self, environ_obj, attr, val, undo=True, **kwargs):
+        kwargs['environ'] = environ_obj.__dict__['_package'].environ
+        kwargs['root'] = environ_obj.__dict__['_root']
+        self.undo_data = self._do_action(attr, val, **kwargs)
+        if not undo:
+            self.undo_data = ''
         
-    def undo(self):
+    # For data compactness, as this is pickled, don't store attr name on
+    # the Action instance, but explicitly pass it in on undo
+    def undo(self, environ_obj, attr):
         kwargs = {}
-        kwargs['environ'] = self._environ_obj.__dict__['_package'].environ
-        kwargs['root'] = self._environ_obj.__dict__['_root']
+        kwargs['environ'] = environ_obj.__dict__['_package'].environ
+        kwargs['root'] = environ_obj.__dict__['_root']
         kwargs['expand'] = False
-        self._undo_action(self.attr, self.val, **kwargs)
+        self._undo_action(attr, self.undo_data, **kwargs)
 
 class Prepend(Action):
     def _do_action(self, attr, val, **kwargs):
@@ -926,10 +936,11 @@ class Append(Action):
         
 class Set(Action):
     def _do_action(self, attr, val, **kwargs):
-        self.orig_val = kwargs['environ'].get(attr)
-        return setenv(attr, val, **kwargs)
+        orig_val = kwargs['environ'].get(attr)
+        setenv(attr, val, **kwargs)
+        return orig_val
     def _undo_action(self, attr, val, **kwargs):
-        setenv(attr, self.orig_val, **kwargs)
+        setenv(attr, val, **kwargs)
         
 # Unset is done by Set(attr, None)
 #
@@ -1210,6 +1221,21 @@ class BasePackage(object):
     
     def environ_vars(self):
         return self._environ_obj.__dict__['_env_vars']
+
+    def __getstate__(self):
+        pickle_dict = dict(self.__dict__)
+        session = pickle_dict.pop('_session', None)
+        if session:
+            pickle_dict['pid'] = session.pid
+        else:
+            pickle_dict['pid'] = None
+        return pickle_dict
+
+    def __setstate__(self, pickle_dict):
+        pid = pickle_dict.pop('pid')
+        pickle_dict['_session'] = Session(pid=pid)
+        for key, val in pickle_dict.iteritems():
+            setattr(self, key, val)
             
 class FakePackage(BasePackage):
     '''
@@ -1753,7 +1779,7 @@ class SessionEnv(SessionStorage):
     
     def write_dict(self, newdict):
         rawstr = self.binary_to_alpha(pickle.dumps(newdict, protocol=self.PICKLE_DATA_VER))
-        getattr(self.setpkg_pkg._environ_obj, self.SESSION_DATA_VAR).set(rawstr)
+        getattr(self.setpkg_pkg._environ_obj, self.SESSION_DATA_VAR).set(rawstr, undo=False)
 
     # Even though pickle.loads/dumps give strings which we could theoretically
     # simply stick into environment variables straight up, we will need to
@@ -2009,9 +2035,9 @@ class Session(object):
         if not reloading:
             self._status('removing', package.fullname, '-', depth)
 
-        for env_var in package.environ_vars().itervalues():
+        for name, env_var in package.environ_vars().iteritems():
             for action in reversed(env_var._actions):
-                action.undo()
+                action.undo(package._environ_obj, name)
         
         del self.storage[shortname]
         self._removed.append(package)
@@ -2054,7 +2080,6 @@ class Session(object):
         # After popping off all vals in self.environ, other will have left
         # only values that have been removed...
         return changed, other
-        
 
 def setpkg(packages, force=False, update_pypath=False, pid=None):
     """
