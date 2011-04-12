@@ -1747,7 +1747,29 @@ class SessionShelf(SessionStorage):
 class SessionEnv(SessionStorage):
     '''Persistent storage using environment variables
     '''
-    SESSION_DATA_VAR = 'SETPKG_SESSION_DATA'
+    SESSION_DATA_PREFIX = 'SETPKG_SESSION_DATA_'
+
+    # Would like to make these per-shell, but that would mean passing down the
+    # shell somehow... seems like too much work for a limited benefit
+    
+    # The Microsoft / Windows thing is just for a bug with platform.system(),
+    # which returned 'Microsoft' for Vista, and 'Windows' for pretty much
+    # all other windows flavors
+    MAX_VAR_SIZES = {'Microsoft':8000,
+                     'Windows':8000,
+                     # This limit is for TCSH...
+                     # bash on Darwin seems unlimited (or at least, very large)
+                     'Darwin':4000,
+                     'Linux':120000}
+    
+    # Length testers:
+    # tcsh
+    #   setenv LONG_VAR `python -c "print 'A'*4096"` && echo $LONG_VAR
+    # bash
+    #   export LONG_VAR=`python -c "print 'set LONG_VAR=%s'%'A'*4096" && echo $LONG_VAR
+    # dos
+    #   python -c "print 'set LONG_VAR=%s'%('A'*50)" | cmd
+     
     
     # Keep this a set value, so if data is pickled by one version of python and
     # read by another, we're ok... just need to make sure that this version is
@@ -1766,21 +1788,49 @@ class SessionEnv(SessionStorage):
         self.write_dict(data)
     def __contains__(self, key):
         return key in self.read_dict()
+    
+    def get_data_vars(self):
+        data_vars = [x for x in self.session.environ
+                     if x.startswith(self.SESSION_DATA_PREFIX)]
+        if not data_vars:
+            return []
 
-    def initialize_data(self):
-        super(SessionEnv, self).initialize_data()
-        if self.SESSION_DATA_VAR not in self.session.environ:
-            self.write_dict({})
+        data_var_nums = [int(x[len(self.SESSION_DATA_PREFIX):])
+                         for x in data_vars]
+        assert len(data_var_nums) == max(data_var_nums) + 1, "Setpkg session data variables %s* not sequential" % self.SESSION_DATA_PREFIX
         
+        vals = []
+        for i in xrange(len(data_vars)):
+            var = self.SESSION_DATA_PREFIX + str(i)
+            vals.append(self.session.environ[var])
+        return vals
+        
+
     def read_dict(self):
-        rawstr = self.session.environ.get(self.SESSION_DATA_VAR)
+        rawstr = ''.join(self.get_data_vars())
         if not rawstr:
             return {}
         return self.binary_to_python(self.alpha_to_binary(rawstr))
     
     def write_dict(self, newdict):
         rawstr = self.binary_to_alpha(self.python_to_binary(newdict))
-        getattr(self.setpkg_pkg._environ_obj, self.SESSION_DATA_VAR).set(rawstr, undo=False)
+        remainder = rawstr
+        i = 0
+        max_size = self.MAX_VAR_SIZES[platform.system()]
+        while remainder:
+            # We'll start with 1...
+            var = self.SESSION_DATA_PREFIX + str(i)
+            getattr(self.setpkg_pkg._environ_obj, var).set(remainder[:max_size], undo=False)
+            remainder = remainder[max_size:]
+            i += 1
+        # Remove any old env vars > current size
+        while True:
+            var = self.SESSION_DATA_PREFIX + str(i)
+            if var not in self.session.environ:
+                break
+            else:
+                del self.session.environ[var]
+            i += 1
 
     # Even though pickle.loads/dumps give strings which we could theoretically
     # simply stick into environment variables straight up, we will need to
