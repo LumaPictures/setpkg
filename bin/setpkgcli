@@ -112,8 +112,7 @@ def doit(func, args):
 
 def set_packages(args):
     def f():
-        session = setpkg(args.packages, force=args.reload, pid=args.pid)
-        return session.altered()
+        return setpkg(args.packages, force=args.reload, pid=args.pid)
     doit(f, args)
 
 def unset_packages(args):
@@ -122,8 +121,7 @@ def unset_packages(args):
             packages = list_active_packages(pid=args.pid)
         else:
             packages = args.packages
-        session = unsetpkg(packages, pid=args.pid, recurse=args.recurse)
-        return session.altered()
+        return unsetpkg(packages, pid=args.pid, recurse=args.recurse)
     doit(f, args)
 
 def run_package(args):

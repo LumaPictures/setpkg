@@ -2078,15 +2078,28 @@ class Session(object):
             other = os.environ
             
         # we'll be modifying this, make a copy
-        other = dict(other)
+        removed = dict(other)
         changed = {}
         for key, val in self.environ.iteritems():
-            old_val = other.pop(key, None)
+            if val is None:
+                # This means the value was deleted... skip
+                continue
+            old_val = removed.pop(key, None)
             if old_val != val:
                 changed[key] = val
-        # After popping off all vals in self.environ, other will have left
+        # After popping off all vals in self.environ, removed will have left
         # only values that have been removed...
-        return changed, other
+        return changed, removed
+
+def _update_environ(session, other=None):
+    if other is None:
+        other = os.environ
+    changed, removed = session.altered(other=other)
+    for key, val in changed.iteritems():
+        other[key] = val
+    for key in removed:
+        del other[key]
+    return changed, removed
 
 def setpkg(packages, force=False, update_pypath=False, pid=None):
     """
@@ -2107,7 +2120,7 @@ def setpkg(packages, force=False, update_pypath=False, pid=None):
     for name in packages:
         session.add_package(name, force=force)
 
-    return session
+    return _update_environ(session)
 
 def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
     """
@@ -2127,7 +2140,7 @@ def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
     for name in packages:
         session.remove_package(name, recurse=recurse)
 
-    return session
+    return _update_environ(session)
 
 def list_active_packages(package=None, pid=None):
     versions = current_versions()
