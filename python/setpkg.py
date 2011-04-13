@@ -1853,9 +1853,6 @@ class SessionEnv(SessionStorage):
             # Bug with platform.system - Vista reports as 'Microsoft'
             system = 'Windows'
         max_size = self.MAX_VAR_SIZES[system]
-        logger.error('='*80)
-        logger.error('%s - %s' % (system, max_size))
-        logger.error('='*80)
         while remainder:
             # We'll start with 1...
             var = self.SESSION_DATA_PREFIX + str(i)
