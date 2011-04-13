@@ -143,25 +143,33 @@ def info(args):
         session = Session(pid=args.pid)
         package = session.storage[shortname]
 
-    def detail(section, *data, **colors):
-        section_color = colors.get('section_color', 'cyan')
-        value_color = colors.get('value_color', None)
-        widths = (20, 30, 20)
-        if section:
-            section += ':'
+    def detail(*data, **kwargs):
+        colors = kwargs.get('colors', ('cyan',))
+        default_color = kwargs.get('default_color', None)
+        if len(colors) < len(data):
+            colors += ( (default_color,) * (len(data) - len(colors)) )
+
+        widths = kwargs.get('widths', (20, 30))
+        default_width = kwargs.get('default_width', 20)
+        if len(widths) < len(data):
+            widths += ( (default_width,) * (len(data) - len(widths)) )
+        
+        data = list(data)
+        if data and data[0]:
+            data[0] += ':'
         line = ''
-        for d, w in zip(data, widths[1:]):
+        for d, w, c in zip(data, widths, colors):
             d = d.ljust(w)
-            if value_color:
-                d = render_effects(d, value_color)
+            if c:
+                d = render_effects(d, c)
             line += d
         # user error to avoid removing whitespace formatting
-        error(render_effects(section.ljust(widths[0]), section_color) + line)
+        error(line)
     
-    def table(section, labels, columns):
-        detail(section, value_color='blue', *['[%s]' % label for label in labels])
+    def table(section, labels, columns, **kwargs):
+        detail(section, default_color='blue', *['[%s]' % label for label in labels])
         for data in columns:
-            detail('', *data)
+            detail('', *data, **kwargs)
         status('')
 
     if version:
@@ -183,12 +191,12 @@ def info(args):
     if curr_version:
         detail('dependents', ', '.join([pkg.origname for pkg in package.get_dependents()]))
     else:
-        detail('dependents', '<inactive>', value_color='red')
+        detail('dependents', '<inactive>', default_color='red')
 
     if curr_version:
         detail('active version', curr_version)
     else:
-        detail('active_version', '<inactive>', value_color='red')
+        detail('active_version', '<inactive>', default_color='red')
     status('')
     
     sys_aliases = package.system_aliases
@@ -208,17 +216,34 @@ def info(args):
     if curr_version:
 
         vals = []
-        for var in sorted(package.environ):
-            if not var.startswith('SETPKG_'):
-                val_list = package.environ[var]
-                vals.append((var, val_list[0]))
-                for val in val_list[1:]:
-                    vals.append(('', val))
+        for name, var in sorted( package.environ_vars().items() ):
+            if name.startswith('SETPKG_'):
+                continue
+            var_vals = []
+            for action in var._actions:
+                # Start with the name of the variable if we haven't said it yet
+                if not var_vals:
+                    var_name = name
+                else:
+                    var_name = ''
+                    
+                # then the action...
+                action_name = type(action).__name__
+                
+                # then the value associated with that action - if it's set,
+                # we didn't store the exact value we set it to, so just use
+                # the current value
+                if type(action) == Set:
+                    val = '(?) ' + os.environ.get(name, '<UNSET>')
+                else:
+                    val = action.undo_data
+                var_vals.append( (var_name, action_name, val) )
+            vals.extend(var_vals)
         table('variables',
-              ['variable', 'values'],
-              vals)
+              ['variable', 'action', 'value'],
+              vals, widths=(20,30,11))
     else:
-        detail('variables', '<inactive>', value_color='red')
+        detail('variables', '<inactive>', default_color='red')
 
 def alias(args):
     package_files = sorted(walk_package_files())
