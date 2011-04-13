@@ -491,12 +491,14 @@ class Tcsh(Shell):
         return "alias %s '%s';" % ( key, value)
 
 class WinShell(Shell):
+    # These are variables where windows will construct the value from the value
+    # from system + user + volatile environment values (in that order)
+    WIN_PATH_VARS = ['PATH', 'LibPath', 'Os2LibPath']
+    
     def __init__(self, set_global=False):
         self.set_global = set_global
     def setenv(self, key, value):
         value = value.replace('/', '\\\\')
-        # exclamation marks allow delayed expansion
-        quotedValue = subprocess.list2cmdline([value])
         # Will add environment variables to user environment variables -
         # HKCU\\Environment
         # ...but not to process environment variables
@@ -514,6 +516,27 @@ class WinShell(Shell):
         # ...and newly launched programs will detect this
         # Will also add to process env. vars
         if self.set_global:
+            # If we have a path variable, make sure we don't include items
+            # already in the user or system path, as these items will be 
+            # duplicated if we do something like:
+            #   env.PATH += 'newPath'
+            # ...and can lead to exponentially increasing the size of the
+            # variable every time we do an append
+            # So if an entry is already in the system or user path, since these
+            # will proceed the volatile path in precedence anyway, don't add
+            # it to the volatile as well
+            if key in self.WIN_PATH_VARS:
+                sysuser = set(self.system_env(key).split(os.pathsep))
+                sysuser.update(self.user_env(key).split(os.pathsep))
+                new_value = []
+                for val in value.split(os.pathsep):
+                    if val not in sysuser and val not in new_value:
+                        new_value.append(val)
+                volatile_value = os.pathsep.join(new_value)
+            else:
+                volatile_value = value
+            # exclamation marks allow delayed expansion
+            quotedValue = subprocess.list2cmdline([volatile_value])
             cmd = 'setenv -v %s %s\n' % (key, quotedValue)
         else:
             cmd = ''
@@ -528,6 +551,12 @@ class WinShell(Shell):
             cmd = ''
         cmd += 'set %s=\n' % (key,)
         return cmd
+    
+    def user_env(self, key):
+        return executableOutput(['setenv', '-u', key])
+    
+    def system_env(self, key):
+        return executableOutput(['setenv', '-m', key])
 
 shells = { 'bash' : Bash,
            'sh'   : Bash,
@@ -1754,12 +1783,11 @@ class SessionEnv(SessionStorage):
     # The Microsoft / Windows thing is just for a bug with platform.system(),
     # which returned 'Microsoft' for Vista, and 'Windows' for pretty much
     # all other windows flavors
-    MAX_VAR_SIZES = {'Microsoft':8000,
-                     'Windows':8000,
+    MAX_VAR_SIZES = {'Windows':1000,
                      # This limit is for TCSH...
                      # bash on Darwin seems unlimited (or at least, very large)
                      'Darwin':4000,
-                     'Linux':120000}
+                     'Linux':1000}
     
     # Length testers:
     # tcsh
@@ -1820,7 +1848,14 @@ class SessionEnv(SessionStorage):
         rawstr = self.binary_to_alpha(self.python_to_binary(newdict))
         remainder = rawstr
         i = 0
-        max_size = self.MAX_VAR_SIZES[platform.system()]
+        system = platform.system()
+        if system == 'Microsoft':
+            # Bug with platform.system - Vista reports as 'Microsoft'
+            system = 'Windows'
+        max_size = self.MAX_VAR_SIZES[system]
+        logger.error('='*80)
+        logger.error('%s - %s' % (system, max_size))
+        logger.error('='*80)
         while remainder:
             # We'll start with 1...
             var = self.SESSION_DATA_PREFIX + str(i)
