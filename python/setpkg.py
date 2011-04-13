@@ -339,7 +339,7 @@ LOG_LVL_VAR = 'SETPKG_LOG_LEVEL'
 
 import logging
 logger = logging.getLogger("setpkg")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 ## create file handler which logs even debug messages
 #fh = logging.FileHandler("/var/tmp/setpkg.log")
@@ -763,7 +763,7 @@ class Environment(object):
     
     def __env__get__(self, attr):
         env_vars = self.__dict__['_env_vars']
-        if 'attr' not in env_vars:
+        if attr not in env_vars:
             env_vars[attr] = EnvironmentVariable(attr, self)
         return env_vars[attr]
 
@@ -774,7 +774,7 @@ class Environment(object):
         self.__env__set__(attr, value)
         
     def __env__set__(self, attr, value):
-        if value is self:
+        if isinstance(value, EnvironmentVariable) and value.name == attr:
             # makes no sense to set ourselves. most likely a result of:
             # env.VAR += value
             return
@@ -927,12 +927,14 @@ class Prepend(Action):
     def _do_action(self, attr, val, **kwargs):
         return prependenv(attr, val, **kwargs)
     def _undo_action(self, attr, val, **kwargs):
+        logger.debug("undoing Prepend - %s - %s - %r" % (attr, val, kwargs['environ'].get(attr)))
         popenv(attr, val, from_end=False, **kwargs)
         
 class Append(Action):
     def _do_action(self, attr, val, **kwargs):
         return appendenv(attr, val, **kwargs)
     def _undo_action(self, attr, val, **kwargs):
+        logger.debug("undoing Append - %s - %s - %r" % (attr, val, kwargs['environ'].get(attr)))
         popenv(attr, val, from_end=True, **kwargs)
         
 class Set(Action):
@@ -941,6 +943,7 @@ class Set(Action):
         setenv(attr, val, **kwargs)
         return orig_val
     def _undo_action(self, attr, val, **kwargs):
+        logger.debug("undoing Set - %s - %s - %r" % (attr, val, kwargs['environ'].get(attr)))
         setenv(attr, val, **kwargs)
         
 # Unset is done by Set(attr, None)
@@ -956,6 +959,7 @@ class Pop(Action):
         self.from_end = kwargs.pop('from_end', False)
         return popenv(attr, val, from_end=self.from_end, **kwargs)
     def _undo_action(self, attr, val, **kwargs):
+        logger.debug("undoing Pop - %s - %s - %r" % (attr, val, kwargs['environ'].get(attr)))
         if self.from_end:
             appendenv(attr, val, **kwargs)
         else:
@@ -1223,20 +1227,15 @@ class BasePackage(object):
     def environ_vars(self):
         return self._environ_obj.__dict__['_env_vars']
 
+    # To save space, remove the session object from the package (otherwise,
+    # we end up pickling the whole environment!)
+    # Note that this means when unpickling a package, there will be no _session
+    # variable - it is the unpickler's responsibility to set this!
     def __getstate__(self):
         pickle_dict = dict(self.__dict__)
         session = pickle_dict.pop('_session', None)
-        if session:
-            pickle_dict['pid'] = session.pid
-        else:
-            pickle_dict['pid'] = None
         return pickle_dict
 
-    def __setstate__(self, pickle_dict):
-        pid = pickle_dict.pop('pid')
-        pickle_dict['_session'] = Session(pid=pid)
-        for key, val in pickle_dict.iteritems():
-            setattr(self, key, val)
             
 class FakePackage(BasePackage):
     '''
@@ -1810,7 +1809,12 @@ class SessionEnv(SessionStorage):
         rawstr = ''.join(self.get_data_vars())
         if not rawstr:
             return {}
-        return self.binary_to_python(self.alpha_to_binary(rawstr))
+        package_dict = self.binary_to_python(self.alpha_to_binary(rawstr))
+        # The packages don't pickle their session, so restore it here
+        for obj in package_dict.itervalues():
+            if isinstance(obj, BasePackage):
+                obj._session = self.session
+        return package_dict
     
     def write_dict(self, newdict):
         rawstr = self.binary_to_alpha(self.python_to_binary(newdict))
@@ -2015,7 +2019,7 @@ class Session(object):
         try:
             package = get_package(name, session=self)
         except PackageError, err:
-            print err
+            logger.error(err)
             return
         shortname = package.name
         curr = PackageInterface(shortname, session=self)
@@ -2198,7 +2202,7 @@ def list_active_packages(package=None, pid=None):
         if package in versions:
             return [_joinname(package, versions[package])]
         else:
-            print "package %s is not currently active" % package
+            logger.warn("package %s is not currently active" % package)
             return []
     else:
         return [_joinname(pkg, versions[pkg]) for pkg in sorted(versions.keys())]
