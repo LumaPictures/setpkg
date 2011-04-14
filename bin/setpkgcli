@@ -128,7 +128,9 @@ def run_package(args):
     args.packages = args.package
     args.reload = False
     set_packages(args)
-    package = Session.get_package(args.package[0])
+    # Because we know we won't be modifying anything with this session / package,
+    # ok to use os.environ for speed (to avoid copy of environ)
+    package = Session(environ=os.environ).get_package(args.package[0])
     runcmd = [package.executable]
     if args.runargs:
         runcmd.extend(args.runargs)
