@@ -1762,18 +1762,10 @@ class Session(object):
         - contents of the builtin `platform` module (equivalent of `from platform import *`)
         - contents of `setpkgutil` module, if it exists
     '''
-    _sessions = {}
-    
-    def __new__(cls, pid=None, storage_class=SessionEnv, reuse=True,
-                environ=None):
+    def __new__(cls, pid=None, storage_class=SessionEnv, environ=None):
         if pid is None:
             pid = _getppid()
         
-        if reuse:
-            saved_session = cls._sessions.get(pid)
-            if saved_session is not None:
-                return saved_session
-
         if environ is None:
             environ = dict(os.environ)
 
@@ -1786,9 +1778,7 @@ class Session(object):
         self.storage_class = storage_class
         self._environ_dict = environ
         self.entry_level = 0
-        
-        if reuse:
-            cls._sessions[pid] = self
+
         return self
         
     @property
