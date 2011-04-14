@@ -2107,7 +2107,7 @@ class Session(object):
         '''
         return dict((key[len(VER_PREFIX):], val.split(META_SEP)[0])
                     for key, val in self.environ.iteritems()
-                    if key.startswith(VER_PREFIX))
+                    if key.startswith(VER_PREFIX) and val is not None)
 
 
     @DefaultSessionMethod
