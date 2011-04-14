@@ -76,13 +76,13 @@ def status(value):
 
 def list_packages(args):
     if args.all:
-        for pkg in list_package_choices(args.packages,
+        for pkg in Session.list_package_choices(args.packages,
                                               versions=not args.base,
                                               aliases=args.aliases,
                                               regexp=not args.no_regexp):
             status(pkg)
     else:
-        for pkg in list_active_packages(args.packages, args.pid):
+        for pkg in Session.list_active_packages(args.packages, args.pid):
             status(pkg)
 
 def doit(func, args):
@@ -118,7 +118,7 @@ def set_packages(args):
 def unset_packages(args):
     def f():
         if args.all:
-            packages = list_active_packages(pid=args.pid)
+            packages = Session.list_active_packages(pid=args.pid)
         else:
             packages = args.packages
         return unsetpkg(packages, pid=args.pid, recurse=args.recurse)
@@ -128,19 +128,21 @@ def run_package(args):
     args.packages = args.package
     args.reload = False
     set_packages(args)
-    package = get_package(args.package[0])
+    package = Session.get_package(args.package[0])
     runcmd = [package.executable]
     if args.runargs:
         runcmd.extend(args.runargs)
     command(' '.join(runcmd))
 
 def info(args):
+    # use raw os.environ for speed
+    session = Session(environ=os.environ, pid=args.pid)
+    
     shortname, version = _splitname(args.package[0])
-    curr_version = current_version(shortname)
+    curr_version = session.current_version(shortname)
     if curr_version is None:
-        package = get_package(args.package[0])
+        package = session.get_package(args.package[0])
     else:
-        session = Session(pid=args.pid)
         package = session.storage[shortname]
 
     def detail(*data, **kwargs):
@@ -183,7 +185,7 @@ def info(args):
 
     detail('name', package.name)
     detail('executable', package.executable)
-    detail('versions', ', '.join(list_package_versions(package, regexp=True)))
+    detail('versions', ', '.join(session.list_package_versions(package, regexp=True)))
     detail('default version', str(defaultVer))
     detail('subpackages', ', '.join(package.subpackages))
     detail('dependencies', ', '.join([pkg.origname for pkg in package.get_dependencies()]))
@@ -246,11 +248,14 @@ def info(args):
         detail('variables', '<inactive>', default_color='red')
 
 def alias(args):
-    package_files = sorted(walk_package_files())
+    # use raw os.environ for speed
+    session = Session(environ=os.environ, pid=args.pid)
+    package_files = sorted(session.walk_package_files())
+    
     shell = _get_shell(args.shell)
     for package_file in package_files:
         try:
-            pkg = Package(package_file)
+            pkg = Package(package_file, session=session)
             for sys_alias, pkgname in pkg.system_aliases:
                 command(shell.alias(sys_alias, 'runpkg %s' % pkgname))
         except PackageError, err:

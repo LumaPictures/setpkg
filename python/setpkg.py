@@ -1067,182 +1067,6 @@ def _parse_header(file):
                     break
     return header
 
-def _pkgpaths():
-    if 'SETPKG_PATH' not in os.environ:
-        raise ValueError('SETPKG_PATH environment variable not set!')
-    return _split(os.environ['SETPKG_PATH'])
-
-def find_package_file(name):
-    '''
-    given an unversioned package name, search SETPKG_PATH for the .pykg file
-
-    Parameters
-    ----------
-    name : str
-        a versioned or unversioned package name
-    '''
-    for path in _pkgpaths():
-        file = os.path.join(_expand(path), (name + '.pykg'))
-        if os.path.exists(file):
-            return file
-    raise PackageError(name, 'unknown package')
-
-def walk_package_files():
-    # Accomodate for hiearchical setpkg paths - if we've already encountered
-    # a given .pykg, don't yield a new one
-    discovered = set()
-    for path in _pkgpaths():
-        for f in sorted(os.listdir(path)):
-            if f.endswith('.pykg') and f not in discovered:
-                discovered.add(f)
-                yield os.path.join(path, f)
-
-def list_package_choices(package=None, versions=True, aliases=False,
-                         regexp=False):
-    '''
-    list available packages in NAME-VERSION format.
-
-    Parameters
-    ----------
-    package : str
-        name of package to list versions for.  if None, lists all available
-        packages and versions
-    versions : bool
-        whether to list all versions for a package
-    aliases : bool
-        if versions is True, whether to list all aliases as well
-    regexp : bool
-        if versions is True, and versions-from-regexp is enabled, whether to list
-        this regexp in the versions as well
-
-    '''
-    packages = []
-    if package:
-        package_files = [find_package_file(package)]
-    else:
-        package_files = sorted(walk_package_files())
-
-    if not versions:
-        return [ os.path.splitext(os.path.basename(file))[0] for file in package_files]
-
-    for package_file in package_files:
-        try:
-            pkg = Package(package_file)
-            versions = list_package_versions(package=pkg, aliases=aliases,
-                                             regexp=regexp)
-            packages.extend(_joinname(pkg.name, ver) for ver in versions)
-        except PackageError, err:
-            logger.debug(str(err))
-    return packages
-
-def list_package_versions(package=None, package_file=None,
-                          aliases=False, regexp=False):
-    '''list all available versions for a package
-    
-    Parameters
-    ----------
-    package : str or Package
-        name of package, or Package object to list versions for.
-        Exactly one of package and package_file must be provided (and not both) 
-    package_file : str
-        path of package to list versions for.
-        Exactly one of package and package_file must be provided (and not both) 
-    aliases : bool
-        if versions is True, whether to list all aliases as well
-    regexp : bool
-        if versions is True, and version-by-regexp is enabled, whether to list
-        this regexp in the versions as well
-    '''
-    if not package or package_file:
-        raise PackageError('no package or packageFile given')
-    elif package and package_file:
-        raise PackageError('both package and packageFile given')
-    elif package:
-        if isinstance(package, Package):
-            package_file = package.file
-        else:
-            package_file = find_package_file(package)
-
-    versions = []
-    try:
-        pkg = Package(package_file)
-        versions = list(pkg.versions)
-        if aliases:
-            versions.extend(sorted(pkg.aliases))
-        if regexp and pkg.version_from_regex:
-            ver_re = pkg.version_regex
-            if ver_re:
-                versions.append('(regexp:' + ver_re.pattern + ')')
-    except PackageError, err:
-        logger.debug(str(err))
-    return versions
-    
-
-def get_package(name, session=None):
-    '''
-    find a package on SETPKG_PATH and return a Package class.
-
-    Parameters
-    ----------
-    name : str
-        a versioned or unversioned package name
-    '''
-    shortname, version = _splitname(name)
-    return Package(find_package_file(shortname), version, session=session)
-
-def _current_data(name, environ=None):
-    '''
-    return the version and pykg file hash for the given pkg
-    '''
-    if environ is None:
-        environ = os.environ
-    shortname = _shortname(name)
-    try:
-        data = environ[VER_PREFIX + shortname].split(META_SEP)
-    except KeyError:
-        return (None, None)
-    else:
-        if len(data) == 1:
-            return (data[0], None)
-        elif len(data) == 2:
-            return tuple(data)
-        else:
-            raise PackageError(shortname, 'corrupted version data')
-
-def current_version(name, environ=None):
-    '''
-    get the currently set version for the given pkg, or None if it is not set
-
-    Parameters
-    ----------
-    name : str
-        a versioned or unversioned package name
-    '''
-    return _current_data(name, environ=environ)[0]
-
-def is_pkg_set(name):
-    '''
-    return whether the package is set. if a package version is supplied,
-    will also check that this is the version is active
-    '''
-    version = current_version(name)
-    if not version:
-        return False
-    ver = _splitname(name)[1]
-    if ver:
-        return version == ver
-    else:
-        return True
-
-def current_versions(environ=None):
-    '''
-    return a dictionary of shortname to version for all active packages
-    '''
-    if environ is None:
-        environ = os.environ
-    return dict([(k[len(VER_PREFIX):], environ[k].split(META_SEP)[0]) \
-                     for k in environ if k.startswith(VER_PREFIX)])
-
 class BasePackage(object):
     def __init__(self, session=None, root=None):
         if session is None:
@@ -1450,9 +1274,9 @@ class Package(RealPackage):
                     or not regex.match(version)):
                 if not self.explicit_version:
                     version = '%s (default)' % version
-                ver_choices = ', '.join(list_package_versions(self,
-                                                              aliases=True,
-                                                              regexp=True))
+                ver_choices = ', '.join(self._session.list_package_versions(self,
+                                                                aliases=True,
+                                                                regexp=True))
                 raise InvalidPackageVersion(self.name, version,
                                             '(valid choices are %s)' % ver_choices)
         return version
@@ -1890,6 +1714,30 @@ class SessionEnv(SessionStorage):
 #===============================================================================
 # Session
 #===============================================================================
+class DefaultSessionMethod(object):
+    """
+    a decorator which will create and feed in a 'default' Session object if
+    invoked from the class
+    
+    This default Session will have a 'live' (not a copy) of os.environ set as
+    it's environ dict (for speed - ie, to avoid a copy of a potentially large
+    environment), and so this decorator should be used only on methods which
+    will not alter the environment (ie, information gathering methods, such
+    as ones which query SETPKG_VERSION_* to see which packages are currently
+    set, etc)
+    """
+    def __init__(self, method):
+        self.method = method
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            # Could have also just done:
+            # instance = Session(environ=os.environ)
+            # ...since this is only intended to be used on the Session class...
+            instance = owner(environ=os.environ)
+        def bound_func(*args, **kwargs):
+            return self.method(instance, *args, **kwargs)
+        return bound_func
 
 class Session(object):
     '''
@@ -1916,12 +1764,18 @@ class Session(object):
     '''
     _sessions = {}
     
-    def __new__(cls, pid=None, protocol=2, storage_class=SessionEnv):
+    def __new__(cls, pid=None, storage_class=SessionEnv, reuse=True,
+                environ=None):
         if pid is None:
             pid = _getppid()
-        saved_session = cls._sessions.get(pid)
-        if saved_session is not None:
-            return saved_session
+        
+        if reuse:
+            saved_session = cls._sessions.get(pid)
+            if saved_session is not None:
+                return saved_session
+
+        if environ is None:
+            environ = dict(os.environ)
 
         self = super(Session, cls).__new__(cls)
         self._added = []
@@ -1930,10 +1784,11 @@ class Session(object):
         self.pid = pid if pid else _getppid()
         self.filename = None
         self.storage_class = storage_class
-        self._environ_dict = dict(os.environ)
+        self._environ_dict = environ
         self.entry_level = 0
         
-        cls._sessions[pid] = self
+        if reuse:
+            cls._sessions[pid] = self
         return self
         
     @property
@@ -1983,7 +1838,7 @@ class Session(object):
             self.add_package(subname, parent=package, depth=depth+1)
         g['setpkg'] = subpkg
         for n in ['is_pkg_set', 'current_version']:
-            g[n] = globals()[n]
+            g[n] = getattr(self, n)
 
         # platform utilities
         import platform
@@ -2047,9 +1902,22 @@ class Session(object):
 #        for pkg in subpackages:
 #            var.prepend(pkg, expand=False)
 
+    def get_package(self, name):
+        '''
+        find a package on SETPKG_PATH and return a Package class.
+    
+        Parameters
+        ----------
+        name : str
+            a versioned or unversioned package name
+        '''
+        shortname, version = _splitname(name)
+        return Package(self.find_package_file(shortname), version, session=self)
+
+
     def add_package(self, name, parent=None, force=False, depth=0):
         try:
-            package = get_package(name, session=self)
+            package = self.get_package(name)
         except PackageError, err:
             logger.error(err)
             return
@@ -2116,7 +1984,7 @@ class Session(object):
 
     def remove_package(self, name, recurse=False, depth=0, reloading=False):
         shortname, version = _splitname(name)
-        curr_version = current_version(shortname)
+        curr_version = self.current_version(shortname)
         if curr_version is None:
             raise PackageError(shortname, "package is not currently set")
         package = self.storage[shortname]
@@ -2143,7 +2011,7 @@ class Session(object):
             for depend in package.get_dependents():
                 # Make sure that the package hasn't already been removed
                 # because of some other recursive dependency...
-                if depend.name in current_versions():
+                if depend.name in self.current_versions():
                     self.remove_package(depend.fullname, depth=depth+1)
         return package
 
@@ -2176,6 +2044,192 @@ class Session(object):
         # After popping off all vals in self.environ, removed will have left
         # only values that have been removed...
         return changed, removed
+    
+    #===========================================================================
+    # Info methods
+    #===========================================================================
+    
+    @DefaultSessionMethod
+    def _pkgpaths(self):
+        if 'SETPKG_PATH' not in self.environ:
+            raise ValueError('SETPKG_PATH environment variable not set!')
+        return _split(self.environ['SETPKG_PATH'])
+
+    @DefaultSessionMethod
+    def _current_data(self, name):
+        '''
+        return the version and pykg file hash for the given pkg
+        '''
+        shortname = _shortname(name)
+        try:
+            data = self.environ[VER_PREFIX + shortname].split(META_SEP)
+        except KeyError:
+            return (None, None)
+        else:
+            if len(data) == 1:
+                return (data[0], None)
+            elif len(data) == 2:
+                return tuple(data)
+            else:
+                raise PackageError(shortname, 'corrupted version data')
+
+    @DefaultSessionMethod
+    def is_pkg_set(self, name):
+        '''
+        return whether the package is set. if a package version is supplied,
+        will also check that this is the version is active
+        '''
+        version = self.current_version(name)
+        if not version:
+            return False
+        ver = _splitname(name)[1]
+        if ver:
+            return version == ver
+        else:
+            return True
+
+    @DefaultSessionMethod
+    def current_version(self, name):
+        '''
+        get the currently set version for the given pkg, or None if it is not set
+    
+        Parameters
+        ----------
+        name : str
+            a versioned or unversioned package name
+        '''
+        return self._current_data(name)[0]
+
+    @DefaultSessionMethod
+    def current_versions(self):
+        '''
+        return a dictionary of shortname to version for all active packages
+        '''
+        return dict((key[len(VER_PREFIX):], val.split(META_SEP)[0])
+                    for key, val in self.environ.iteritems()
+                    if key.startswith(VER_PREFIX))
+
+
+    @DefaultSessionMethod
+    def find_package_file(self, name):
+        '''
+        given an unversioned package name, search SETPKG_PATH for the .pykg file
+    
+        Parameters
+        ----------
+        name : str
+            a versioned or unversioned package name
+        '''
+        for path in self._pkgpaths():
+            file = os.path.join(_expand(path), (name + '.pykg'))
+            if os.path.exists(file):
+                return file
+        raise PackageError(name, 'unknown package')
+
+    @DefaultSessionMethod
+    def walk_package_files(self):
+        # Accomodate for hiearchical setpkg paths - if we've already encountered
+        # a given .pykg, don't yield a new one
+        discovered = set()
+        for path in self._pkgpaths():
+            for f in sorted(os.listdir(path)):
+                if f.endswith('.pykg') and f not in discovered:
+                    discovered.add(f)
+                    yield os.path.join(path, f)
+
+    @DefaultSessionMethod
+    def list_active_packages(self, package=None, pid=None):
+        versions = self.current_versions()
+        if package:
+            if package in versions:
+                return [_joinname(package, versions[package])]
+            else:
+                logger.warn("package %s is not currently active" % package)
+                return []
+        else:
+            return [_joinname(pkg, versions[pkg]) for pkg in sorted(versions.keys())]
+
+    @DefaultSessionMethod
+    def list_package_choices(self, package=None, versions=True, aliases=False,
+                             regexp=False):
+        '''
+        list available packages in NAME-VERSION format.
+    
+        Parameters
+        ----------
+        package : str
+            name of package to list versions for.  if None, lists all available
+            packages and versions
+        versions : bool
+            whether to list all versions for a package
+        aliases : bool
+            if versions is True, whether to list all aliases as well
+        regexp : bool
+            if versions is True, and versions-from-regexp is enabled, whether to list
+            this regexp in the versions as well
+    
+        '''
+        packages = []
+        if package:
+            package_files = [self.find_package_file(package)]
+        else:
+            package_files = sorted(self.walk_package_files())
+    
+        if not versions:
+            return [ os.path.splitext(os.path.basename(file))[0] for file in package_files]
+    
+        for package_file in package_files:
+            try:
+                pkg = Package(package_file, session=self)
+                versions = self.list_package_versions(package=pkg, aliases=aliases,
+                                                 regexp=regexp)
+                packages.extend(_joinname(pkg.name, ver) for ver in versions)
+            except PackageError, err:
+                logger.debug(str(err))
+        return packages
+
+    @DefaultSessionMethod
+    def list_package_versions(self, package=None, package_file=None,
+                              aliases=False, regexp=False):
+        '''list all available versions for a package
+        
+        Parameters
+        ----------
+        package : str or Package
+            name of package, or Package object to list versions for.
+            Exactly one of package and package_file must be provided (and not both) 
+        package_file : str
+            path of package to list versions for.
+            Exactly one of package and package_file must be provided (and not both) 
+        aliases : bool
+            if versions is True, whether to list all aliases as well
+        regexp : bool
+            if versions is True, and version-by-regexp is enabled, whether to list
+            this regexp in the versions as well
+        '''
+        if not package or package_file:
+            raise PackageError('no package or packageFile given')
+        elif package and package_file:
+            raise PackageError('both package and packageFile given')
+        elif package:
+            if isinstance(package, Package):
+                package_file = package.file
+            else:
+                package_file = self.find_package_file(package)
+    
+        versions = []
+        try:
+            pkg = Package(package_file, session=self)
+            versions = list(pkg.versions)
+            if aliases:
+                versions.extend(sorted(pkg.aliases))
+            if regexp and pkg.version_from_regex:
+                ver_re = pkg.version_regex
+                if ver_re:
+                    versions.append('(regexp:' + ver_re.pattern + ')')
+        except PackageError, err:
+            logger.debug(str(err))
+        return versions
 
 def _update_environ(session, other=None):
     if other is None:
@@ -2187,7 +2241,7 @@ def _update_environ(session, other=None):
         del other[key]
     return changed, removed
 
-def setpkg(packages, force=False, update_pypath=False, pid=None):
+def setpkg(packages, force=False, update_pypath=False, pid=None, environ=None):
     """
     Parameters
     ----------
@@ -2202,13 +2256,17 @@ def setpkg(packages, force=False, update_pypath=False, pid=None):
     logger.debug('setpkg %s' % ([force, update_pypath, pid, sys.executable]))
     if isinstance(packages, basestring):
         packages = [packages]
-    session = Session(pid=pid)
+    if environ is None:
+        environ = os.environ    
+    
+    session = Session(pid=pid, environ=dict(environ))
     for name in packages:
         session.add_package(name, force=force)
 
-    return _update_environ(session)
+    return _update_environ(session, other=environ)
 
-def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
+def unsetpkg(packages, recurse=False, update_pypath=False, pid=None,
+             environ=None):
     """
     Parameters
     ----------
@@ -2220,22 +2278,15 @@ def unsetpkg(packages, recurse=False, update_pypath=False, pid=None):
         set to True if package should be re-run (unloaded, then
         loaded again) if already loaded
     """
+    logger.debug('unsetpkg %s' % ([recurse, update_pypath, pid, sys.executable]))
     if isinstance(packages, basestring):
         packages = [packages]
-    session = Session(pid=pid)
+    if environ is None:
+        environ = os.environ
+
+    session = Session(pid=pid, environ=dict(environ))
     for name in packages:
         session.remove_package(name, recurse=recurse)
 
-    return _update_environ(session)
-
-def list_active_packages(package=None, pid=None):
-    versions = current_versions()
-    if package:
-        if package in versions:
-            return [_joinname(package, versions[package])]
-        else:
-            logger.warn("package %s is not currently active" % package)
-            return []
-    else:
-        return [_joinname(pkg, versions[pkg]) for pkg in sorted(versions.keys())]
+    return _update_environ(session, other=environ)
 
