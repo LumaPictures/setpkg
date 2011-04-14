@@ -1787,7 +1787,7 @@ class SessionEnv(SessionStorage):
                      # This limit is for TCSH...
                      # bash on Darwin seems unlimited (or at least, very large)
                      'Darwin':4000,
-                     'Linux':1000}
+                     'Linux':120000}
     
     # Length testers:
     # tcsh
