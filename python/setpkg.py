@@ -1161,8 +1161,9 @@ class RealPackage(BasePackage):
         return PackageInterface(package, session=self._session).get_dependency_versions()[self.name]
 
     def is_active(self):
-        logger.debug("%s is_active: %s" % (self.name, VER_PREFIX + self.name in self.environ))
-        return VER_PREFIX + self.name in self.environ
+        active = bool(self.environ.get(VER_PREFIX + self.name))
+        logger.debug("%s is_active: %s" % (self.name, active))
+        return active
 
     def __eq__(self, other):
         # use file instead?
