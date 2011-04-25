@@ -2052,17 +2052,17 @@ class Session(object):
         return the version and pykg file hash for the given pkg
         '''
         shortname = _shortname(name)
-        try:
-            data = self.environ[VER_PREFIX + shortname].split(META_SEP)
-        except KeyError:
+        
+        data = self.environ.get(VER_PREFIX + shortname)
+        if data is None:
             return (None, None)
+        data = data.split(META_SEP)
+        if len(data) == 1:
+            return (data[0], None)
+        elif len(data) == 2:
+            return tuple(data)
         else:
-            if len(data) == 1:
-                return (data[0], None)
-            elif len(data) == 2:
-                return tuple(data)
-            else:
-                raise PackageError(shortname, 'corrupted version data')
+            raise PackageError(shortname, 'corrupted version data')
 
     @DefaultSessionMethod
     def is_pkg_set(self, name):
