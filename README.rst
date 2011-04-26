@@ -1,6 +1,31 @@
-An environment variable management system written in python.  The system is
-based around .pykg files: python scripts executed in a special environment and
-containing python ini-style configuration headers.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+setpkg
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An environment variable management system written in python. The system is based around .pykg files: python
+scripts executed in a special environment, containing python ini-style configuration headers. It consists
+of a python API and a command-line utility.
+
+Overview:
+- one package file per application, written in python
+- tracks dependencies between packages (for example, changing maya versions can auto-change python versions)
+- tracks sub-packages (dependents)
+- knows to reload a package file when the file has been edited
+- using relative paths allows it to be used as a more flexible replacement for maya's module system
+- understands setting, prepending, and appending to env variables, and can properly undo each of these actions
+
+Command-line utility:
+- pkg set: used to set the environment in the current shell (tcsh, csh, bash, sh, DOS)
+  - great for setting up build environments
+- pkg info: provides feeback on what packages are set, what environment variables they modify
+- pkg run: sets up an environment then executes an application
+- tab completion of packages
+- sessions are properly inherited in child shells 
+- can auto-create system aliases for app launching (e.g. alias maya-2011='pkg run maya-2011')
+
+Python Module:
+- sets os.environ
+- can generate a dictionary for passing to subprocess.Popen
 
 ==================================
 pykg files
@@ -8,8 +33,8 @@ pykg files
 
 Typically, a single .pykg file is written for each application to be managed,
 and placed on the SETPKG_PATH. When adding a package using the setpkg module or
-command line tool, if the requested version of the package has not yet already
-been set, the .pykg file is executed. Differences per OS, architecture, application
+command line tool, if the requested version of the package is not active, the
+.pykg file is executed. Differences per OS, architecture, application
 version, etc, are handled by code inside the pykg file.
 
 ----------------------------------
@@ -151,10 +176,10 @@ is executed.
 
     setpkgutil module :
         contents of ``setpkgutil`` module, if it exists. this module can be used
-        to easily provide utility functions for use within the pykg file. keep
-        in mind that the setpkgutil module must be on the ``PYTHONPATH`` before
-        it can be used.
-        
+        to easily provide utility functions for use within the pykg file, without
+        the need to explicitly import it. keep in mind that the setpkgutil module
+        must be on the ``PYTHONPATH`` before it can be used.
+
 ==================================
 Commandline Tools
 ==================================
@@ -164,13 +189,13 @@ The core command is called ``pkg``, which has several sub-commands, notably ``se
 
 here's a simple example, using the Nuke package file outlined above::
 
-    $ pkg set nuke             
-    adding:     [+]  nuke-6.1v2                                          
-    adding:     [+]    python-2.5                                        
-    adding:     [+]      lumaTools-1.0                                   
-    adding:     [+]      pyexternal-1.0                                  
-    adding:     [+]        pymel-1.0                                     
-    adding:     [+]    djv-0.8.3.p2                                      
+    $ pkg set nuke
+    adding:     [+]  nuke-6.1v2
+    adding:     [+]    python-2.5
+    adding:     [+]      lumaTools-1.0
+    adding:     [+]      pyexternal-1.0
+    adding:     [+]        pymel-1.0
+    adding:     [+]    djv-0.8.3.p2
     $ pkg ls
     djv-0.8.3.p2
     lumaTools-1.0
@@ -178,8 +203,8 @@ here's a simple example, using the Nuke package file outlined above::
     pyexternal-1.0
     pymel-1.0
     python-2.5
-    $ setpkg nuke-6.0v6       
-    switching:  [+]  nuke-6.1v2 --> 6.0v6                                
+    $ setpkg nuke-6.0v6
+    switching:  [+]  nuke-6.1v2 --> 6.0v6
     $ pkg info nuke
     name:               nuke
     executable:         Nuke

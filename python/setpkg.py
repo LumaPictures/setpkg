@@ -1587,6 +1587,8 @@ class SessionShelf(SessionStorage):
                         shutil.copy(full_old_filename, full_new_filename)
             # read an existing shelf
             flag = 'w'
+            # TODO: add an exception for when the setpkg session no longer exists: it may
+            # have been deleted by a cron job using tmpwatch
             logger.info( "opening existing session %s" % filename )
         else:
             filename = os.path.join(tempfile.gettempdir(), (self.SESSION_PREFIX + pid))

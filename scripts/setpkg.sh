@@ -16,6 +16,7 @@ else
 fi
 
 if [ -z "$SETPKG_PYTHONBIN" ]; then
+    echo "warning: SETPKG_PYTHONBIN unset, using python found on the PATH"
     export SETPKG_PYTHONBIN=`which python`
 fi
 

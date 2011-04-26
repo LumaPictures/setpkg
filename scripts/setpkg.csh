@@ -21,6 +21,7 @@ else
 endif
 
 if ( ! $?SETPKG_PYTHONBIN ) then
+    echo "warning: SETPKG_PYTHONBIN unset, using python found on the PATH"
     setenv SETPKG_PYTHONBIN `which python`
 endif
 
