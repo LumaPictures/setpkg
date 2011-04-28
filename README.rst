@@ -7,6 +7,7 @@ scripts executed in a special environment, containing python ini-style configura
 of a python API and a command-line utility.
 
 Overview:
+
 - one package file per application, written in python
 - tracks dependencies between packages (for example, changing maya versions can auto-change python versions)
 - tracks sub-packages (dependents)
@@ -15,8 +16,9 @@ Overview:
 - understands setting, prepending, and appending to env variables, and can properly undo each of these actions
 
 Command-line utility:
-- pkg set: used to set the environment in the current shell (tcsh, csh, bash, sh, DOS)
-  - great for setting up build environments
+
+- supports tcsh, bash, and DOS
+- pkg set: used to set the environment in the current shell (great for setting up build environments)
 - pkg info: provides feeback on what packages are set, what environment variables they modify
 - pkg run: sets up an environment then executes an application
 - tab completion of packages
@@ -24,6 +26,7 @@ Command-line utility:
 - can auto-create system aliases for app launching (e.g. alias maya-2011='pkg run maya-2011')
 
 Python Module:
+
 - sets os.environ
 - can generate a dictionary for passing to subprocess.Popen
 
