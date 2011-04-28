@@ -1788,16 +1788,16 @@ class Session(object):
     def environ(self):
         return self._environ_dict
         
-    def __enter__(self):
-        #logger.debug( "new session %s" % self.filename )
-        self.entry_level += 1
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.entry_level -= 1
-        if self.entry_level <= 0:
-            #logger.debug('session closed')
-            self.close()
+#    def __enter__(self):
+#        #logger.debug( "new session %s" % self.filename )
+#        self.entry_level += 1
+#        return self
+#
+#    def __exit__(self, type, value, traceback):
+#        self.entry_level -= 1
+#        if self.entry_level <= 0:
+#            #logger.debug('session closed')
+#            self.close()
 
     def _status(self, action, package, symbol=' ', depth=0):
         #prefix = '   ' * depth + '[%s]  ' % symbol
@@ -2278,8 +2278,16 @@ def unsetpkg(packages, recurse=False, update_pypath=False, pid=None,
         environ = os.environ
 
     session = Session(pid=pid, environ=dict(environ))
+    # Assert that, initially, all packages are active
     for name in packages:
-        session.remove_package(name, recurse=recurse)
+        if not session.is_pkg_set(name):
+            raise PackageError(name, "package is not currently set")
+    
+    for name in packages:
+        # Make sure that we don't try to remove a package that was already
+        # recursively removed by another package
+        if session.is_pkg_set(name):
+            session.remove_package(name, recurse=recurse)
 
     return _update_environ(session, other=environ)
 
