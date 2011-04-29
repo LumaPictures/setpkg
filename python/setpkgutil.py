@@ -6,19 +6,24 @@ def packagedir(env, pkg, version):
     use when a package corresponds exactly with a first-level repo subdirectory
     '''
     repoRoot, version = repodir(env, pkg, version)
-    return repoRoot / pkg, version
+    return os.path.join(repoRoot, pkg), version
 
 def repodir(env, pkg, version):
     '''
     the root of the user's dev repo.
-
-    set forceto to 'server' or 'local' to force the returned path.
     '''
     if isdev(env, pkg, version):
         _setpkg.logger.debug("(pkg %s in dev mode)" % pkg)
-        return env.USER_DEV, stripdev(version)
+        ver = stripdev(version)
+        repodir = env.USER_DEV.value()
+        if repodir is None:
+            dev_root = env.DEV_ROOT.value()
+            if dev_root is None:
+                dev_root = env.LUMA_SOFT / 'dev'
+            repodir = os.path.join(dev_root, env.USER.value())
     else:
-        return env.LUMA_SOFT, version
+        repodir, ver = env.LUMA_SOFT.value(), version
+    return repodir, ver
 
 def stripdev(version):
     return version[:-4] if version.endswith('.dev') else version
