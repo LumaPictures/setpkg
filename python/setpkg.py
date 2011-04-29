@@ -1917,41 +1917,42 @@ class Session(object):
         shortname = package.name
         curr = PackageInterface(shortname, session=self)
         reloading = False
-        if force:
-            reloading = True
-            self._status('reloading', package.fullname, '+', depth)
-            self.remove_package(curr.name, depth=depth+1, reloading=True)
         # check if we've already been set:
-        elif curr.is_active():
-            if curr.hash != package.hash:
+        if curr.is_active():
+            if force:
                 reloading = True
-                self._status('refreshing', package.fullname, '+', depth)
-                self.remove_package(curr.name, recurse=True, depth=depth, reloading=True)
-            # if a package of this type is already active and
-            # A) the version requested is the same OR
-            # B) a specific version was not requested
-            elif not package.explicit_version or curr.version == package.version:
-                #self._status('keeping', curr.fullname, ' ', depth)
-                # reload if incorrect version of dependencies are set
-                reloading = False
-                for pkg in package.get_dependencies():
-                    try:
-                        pkg.version
-                    except InvalidPackageVersion:
-                        # error raised when package not active
-                        reloading = True
-                        break
-                if reloading:
-                    self._status('reloading', package.fullname, '+', depth)
-                    self.remove_package(curr.name, depth=depth, reloading=True)
-                else:
-                    return
+                self._status('reloading', package.fullname, '+', depth)
+                self.remove_package(curr.name, depth=depth+1, reloading=True)
             else:
-                reloading = True
-                self._status('switching', 
-                             '%s --> %s' % (curr.fullname, package.version)
-                             , '+', depth)
-                self.remove_package(curr.name, depth=depth, reloading=True)
+                if curr.hash != package.hash:
+                    reloading = True
+                    self._status('refreshing', package.fullname, '+', depth)
+                    self.remove_package(curr.name, recurse=True, depth=depth, reloading=True)
+                # if a package of this type is already active and
+                # A) the version requested is the same OR
+                # B) a specific version was not requested
+                elif not package.explicit_version or curr.version == package.version:
+                    #self._status('keeping', curr.fullname, ' ', depth)
+                    # reload if incorrect version of dependencies are set
+                    reloading = False
+                    for pkg in package.get_dependencies():
+                        try:
+                            pkg.version
+                        except InvalidPackageVersion:
+                            # error raised when package not active
+                            reloading = True
+                            break
+                    if reloading:
+                        self._status('reloading', package.fullname, '+', depth)
+                        self.remove_package(curr.name, depth=depth, reloading=True)
+                    else:
+                        return
+                else:
+                    reloading = True
+                    self._status('switching', 
+                                 '%s --> %s' % (curr.fullname, package.version)
+                                 , '+', depth)
+                    self.remove_package(curr.name, depth=depth, reloading=True)
 
         if not reloading:
             self._status('adding', package.fullname, '+', depth)
