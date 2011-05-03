@@ -1384,15 +1384,19 @@ class Package(RealPackage):
     @propertycache
     def system_aliases(self):
         '''
-        return a list of (alias, packagename) tuples
+        return a list of (alias, command) tuples
+
+        if no command is provided, this assumes that alias represents a version and it converts
+        ('1.0', None) into ('myApp1.0', 'runpkg myApp-1.0')
         '''
         result = []
         if self.config.has_section('system-aliases'):
-            for alias_suffix, pkg_version in self.config.items('system-aliases'):
-                if not pkg_version:
-                    pkg_version = alias_suffix
-                result.append((self.name + alias_suffix, 
-                               _joinname(self.name, self.aliases.get(pkg_version, pkg_version))))
+            for alias, command in self.config.items('system-aliases'):
+                # default behavior if no command is provided, is to convert (1.0, None) into (myApp1.0, runpkg myApp-1.0)
+                if not command:
+                    command = 'runpkg ' + _joinname(self.name, self.aliases.get(alias, alias))
+                    alias = self.name + alias
+                result.append((alias, command))
         return result
 
     @propertycache

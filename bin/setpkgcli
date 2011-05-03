@@ -258,8 +258,9 @@ def alias(args):
     for package_file in package_files:
         try:
             pkg = Package(package_file, session=session)
-            for sys_alias, pkgname in pkg.system_aliases:
-                command(shell.alias(sys_alias, 'runpkg %s' % pkgname))
+            for sys_alias, cmd in pkg.system_aliases:
+                status('alias %s = %r' % (sys_alias, cmd))
+                command(shell.alias(sys_alias, cmd))
         except PackageError, err:
             pass
         except Exception:
