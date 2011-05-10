@@ -1939,7 +1939,7 @@ class Session(object):
                     #self._status('keeping', curr.fullname, ' ', depth)
                     # reload if incorrect version of dependencies are set
                     reloading = False
-                    for pkg in package.get_dependencies():
+                    for pkg in curr.get_dependencies():
                         try:
                             pkg.version
                         except InvalidPackageVersion:
