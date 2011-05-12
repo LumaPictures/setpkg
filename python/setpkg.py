@@ -817,10 +817,13 @@ class Environment(object):
         
     def __env__unset__(self, attr):
         self.__env__get__(attr).unset()
-        del self.__dict__['environ'][attr]
+        del self.__dict__['_env_vars'][attr]
 
     def __contains__(self, attr):
-        return attr in self.environ
+        varObj = self.__dict__['_env_vars'].get(attr)
+        if varObj is not None:
+            return varObj.value() is not None
+        return self.__dict__['_package'].environ.get(attr) is not None 
 
     def __str__(self):
         return pprint.pformat(self.environ)
