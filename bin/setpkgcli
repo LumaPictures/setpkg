@@ -259,7 +259,7 @@ def alias(args):
         try:
             pkg = Package(package_file, session=session)
             for sys_alias, cmd in pkg.system_aliases:
-                status('alias %s = %r' % (sys_alias, cmd))
+                #status('alias %s = %r' % (sys_alias, cmd))
                 command(shell.alias(sys_alias, cmd))
         except PackageError, err:
             pass
