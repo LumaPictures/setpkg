@@ -2231,6 +2231,21 @@ class Session(object):
         except PackageError, err:
             logger.debug(str(err))
         return versions
+    
+    @DefaultSessionMethod
+    def currentPackageVersions(self, packageList):
+        '''Given a packageList, for any package which is versionless and is set
+        in the Session's environment, will replace the unversioned package with
+        the current versioned package.
+        '''
+        newPackageList = []
+        activePackages = self.current_versions()
+        for package in packageList:
+            if package in activePackages:
+                package = _joinname(package, activePackages[package])
+            newPackageList.append(package)
+        return newPackageList
+                
 
 def _update_environ(session, other=None):
     if other is None:
