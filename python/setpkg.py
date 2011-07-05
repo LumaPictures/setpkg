@@ -49,14 +49,14 @@ Used to set global options
 
     executable-path :
         name of the executable for the package, used by ``pkg run``
-    
+
     version-regex :
         validates the version and splits it into components provided as VERSION_PARTS (see below)
-        
+
     versions-from-regex :
         whether to allow versions which are not explicitly listed in versions
         (see below) but do match the version-regex (if it is provided)
-    
+
     default-version :
         the version used when no version is specified
 
@@ -70,7 +70,7 @@ example main section::
 requires
 ========
 
-Requirements are loaded before this current package is loaded. 
+Requirements are loaded before this current package is loaded.
 
 If a specific version of a package is given as a requirement
 and a different version of the package is already loaded, it (and all of its
@@ -167,7 +167,7 @@ Body
 set a variable, overriding any pre-existing value::
     env.MY_VAR = 'foo'
 
-prepend to a variable, using os-specific variable separators 
+prepend to a variable, using os-specific variable separators
 ( ``:`` on linux/max and ``;`` on windows)::
     env.MY_VAR += 'bar'
 
@@ -187,13 +187,13 @@ The core command is called ``pkg``, which has several sub-commands, notably ``se
 
 here's a simple example, using the Nuke package file outlined above::
 
-    $ pkg set nuke             
-    adding:     [+]  nuke-6.1v2                                          
-    adding:     [+]    python-2.5                                        
-    adding:     [+]      lumaTools-1.0                                   
-    adding:     [+]      pyexternal-1.0                                  
-    adding:     [+]        pymel-1.0                                     
-    adding:     [+]    djv-0.8.3.p2                                      
+    $ pkg set nuke
+    adding:     [+]  nuke-6.1v2
+    adding:     [+]    python-2.5
+    adding:     [+]      lumaTools-1.0
+    adding:     [+]      pyexternal-1.0
+    adding:     [+]        pymel-1.0
+    adding:     [+]    djv-0.8.3.p2
     $ pkg ls
     djv-0.8.3.p2
     lumaTools-1.0
@@ -201,8 +201,8 @@ here's a simple example, using the Nuke package file outlined above::
     pyexternal-1.0
     pymel-1.0
     python-2.5
-    $ setpkg nuke-6.0v6       
-    switching:  [+]  nuke-6.1v2 --> 6.0v6                                
+    $ setpkg nuke-6.0v6
+    switching:  [+]  nuke-6.1v2 --> 6.0v6
     $ pkg info nuke
     name:               nuke
     executable:         Nuke
@@ -240,9 +240,9 @@ here's a simple example, using the Nuke package file outlined above::
 
 There are also several handy aliases available:
 
-========  =========== 
+========  ===========
 alias     cmd
-========  =========== 
+========  ===========
 setpkg    pkg set
 unsetpkg  pkg unset
 runpkg    pkg run
@@ -416,10 +416,10 @@ def executableOutput(exeAndArgs, convertNewlines=True, stripTrailingNewline=True
             if True, and the output from the executable contains a final newline,
             it is removed from the return value
             Note: the newline that is stripped is the one given by os.linesep, not \\n
-            
+
         returnCode : bool
             if True, the return will be a tuple, (output, returnCode)
-            
+
         input : string
             if non-none, a string that will be sent to the stdin of the executable
 
@@ -436,7 +436,7 @@ def executableOutput(exeAndArgs, convertNewlines=True, stripTrailingNewline=True
 
     kwargs.setdefault('stdout', subprocess.PIPE)
     kwargs.setdefault('stderr', subprocess.STDOUT)
-    
+
     if input:
         kwargs.setdefault('stdin', subprocess.PIPE)
 
@@ -494,7 +494,7 @@ class WinShell(Shell):
     # These are variables where windows will construct the value from the value
     # from system + user + volatile environment values (in that order)
     WIN_PATH_VARS = ['PATH', 'LibPath', 'Os2LibPath']
-    
+
     def __init__(self, set_global=False):
         self.set_global = set_global
     def setenv(self, key, value):
@@ -517,7 +517,7 @@ class WinShell(Shell):
         # Will also add to process env. vars
         if self.set_global:
             # If we have a path variable, make sure we don't include items
-            # already in the user or system path, as these items will be 
+            # already in the user or system path, as these items will be
             # duplicated if we do something like:
             #   env.PATH += 'newPath'
             # ...and can lead to exponentially increasing the size of the
@@ -551,10 +551,10 @@ class WinShell(Shell):
             cmd = ''
         cmd += 'set %s=\n' % (key,)
         return cmd
-    
+
     def user_env(self, key):
         return executableOutput(['setenv', '-u', key])
-    
+
     def system_env(self, key):
         return executableOutput(['setenv', '-m', key])
 
@@ -580,11 +580,11 @@ def get_shell_class(shell_name):
 
 class EnvironSwapper(object):
     '''Temporarily sets os.environ to use a 'fake' environment
-    
+
     If no environ is explicitly given, a copy of the current os.environ is used.
-    
+
     Intended for use with the 'with' statement
-    
+
     >>> from __future__ import with_statement
     >>> os.environ['TESTVAR'] = 'orig'
     >>> with EnvironSwapper():
@@ -599,11 +599,11 @@ class EnvironSwapper(object):
             environ = dict(os.environ)
         self.oldEnviron = os.environ
         self.newEnviron = environ
-    
+
     def __enter__(self):
         self.oldEnviron = os.environ
         os.environ = self.newEnviron
-    
+
     def __exit__(self, *args):
         os.environ = self.oldEnviron
 
@@ -620,7 +620,7 @@ def _expand(value, strip_quotes=False, environ=None):
     # (on windows: os.path.expandvars will not expand $FOO-x64)
     if environ is None:
         expanded = posixpath.expandvars(value)
-    else:    
+    else:
         with EnvironSwapper(environ):
             expanded = posixpath.expandvars(value)
     expanded = os.path.normpath(os.path.expanduser(expanded))
@@ -652,7 +652,7 @@ def _prep_env_args(value, expand, root, environ):
         if expand:
             value = _expand(value, strip_quotes=True, environ=environ)
         value = _abspath(root, value)
-    
+
     if environ is None:
         environ = os.environ
     return value, environ
@@ -678,10 +678,10 @@ def prependenv(name, value, expand=True, no_dupes=False, root=None, environ=None
             parts.insert(0, value)
             new_value = _join(parts)
             environ[name] = new_value
-           
+
     # update_pypath
     if name == 'PYTHONPATH':
-        sys.path.insert(0, value)            
+        sys.path.insert(0, value)
     #print "prepend", name, value
     return value
 
@@ -706,7 +706,7 @@ def appendenv(name, value, expand=True, no_dupes=False, root=None, environ=None)
             parts.append(value)
             new_value = _join(parts)
             environ[name] = new_value
-            
+
     # update_pypath
     if name == 'PYTHONPATH':
         sys.path.append(value)
@@ -771,7 +771,7 @@ class Environment(object):
     provides attribute-style access to an environment dictionary.
 
     combined with EnvironmentVariable class, tracks changes to the environment
-    
+
     Always linked to a package, since it tracks changes to the environment that
     a given package makes.
     '''
@@ -789,7 +789,7 @@ class Environment(object):
             except KeyError:
                 raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
         return self.__env__get__(attr)
-    
+
     def __env__get__(self, attr):
         env_vars = self.__dict__['_env_vars']
         if attr not in env_vars:
@@ -801,20 +801,20 @@ class Environment(object):
         if attr.startswith('__') and attr.endswith('__'):
             super(Environment, self).__setattr__(attr, value)
         self.__env__set__(attr, value)
-        
+
     def __env__set__(self, attr, value):
         if isinstance(value, EnvironmentVariable) and value.name == attr:
             # makes no sense to set ourselves. most likely a result of:
             # env.VAR += value
             return
         self.__env__get__(attr).set(value)
-        
+
     def __delattr__(self, attr):
         # For things like '__class__', for instance
         if attr.startswith('__') and attr.endswith('__'):
             super(Environment, self).__delattr__(attr)
         self.__env__unset__(attr)
-        
+
     def __env__unset__(self, attr):
         self.__env__get__(attr).unset()
         del self.__dict__['_env_vars'][attr]
@@ -823,11 +823,11 @@ class Environment(object):
         varObj = self.__dict__['_env_vars'].get(attr)
         if varObj is not None:
             return varObj.value() is not None
-        return self.__dict__['_package'].environ.get(attr) is not None 
+        return self.__dict__['_package'].environ.get(attr) is not None
 
     def __str__(self):
         return pprint.pformat(self.environ)
-    
+
     def __getstate__(self):
         # Clean out any _env_vars that we haven't acted on
         vars = self.__dict__['_env_vars']
@@ -835,15 +835,15 @@ class Environment(object):
             if not var._actions:
                 vars.pop(name)
         return self.__dict__
-    
-        
+
+
 class EnvironmentVariable(object):
     '''
     class representing an environment variable
 
     combined with Environment class, tracks changes to the environment
     '''
-    
+
     def __init__(self, name, environ_obj):
         self._name = name
         self._environ_obj = environ_obj
@@ -861,11 +861,11 @@ class EnvironmentVariable(object):
     @property
     def name(self):
         return self._name
-    
+
     @property
     def root(self):
         return self._environ_obj.__dict__['root']
-    
+
     @property
     def environ(self):
         return self._environ_obj.__dict__['_package'].environ
@@ -885,11 +885,11 @@ class EnvironmentVariable(object):
     def unset(self, **kwargs):
         return self._actions.append(Set(self._environ_obj, self._name, None,
                                        **kwargs))
-        
+
     def pop(self, **kwargs):
         return self._actions.append(Pop(self._environ_obj, self._name, None,
                                         **kwargs))
-        
+
 
     def setdefault(self, value):
         '''
@@ -899,7 +899,7 @@ class EnvironmentVariable(object):
             return self.value()
         else:
             return self.set(value)
-        
+
     def __add__(self, value):
         '''
         append `value` to this variable's value.
@@ -935,7 +935,7 @@ class EnvironmentVariable(object):
 
 class Action(object):
     '''Stores information about a change to an environment variable
-    
+
     The changes are made when the action is created; to undo, call the undo
     method
     '''
@@ -945,7 +945,7 @@ class Action(object):
         self.undo_data = self._do_action(attr, val, **kwargs)
         if not undo:
             self.undo_data = ''
-        
+
     # For data compactness, as this is pickled, don't store attr name on
     # the Action instance, but explicitly pass it in on undo
     def undo(self, environ_obj, attr):
@@ -961,14 +961,14 @@ class Prepend(Action):
     def _undo_action(self, attr, val, **kwargs):
         logger.debug("undoing Prepend - %s - %s - %r" % (attr, val, kwargs['environ'].get(attr)))
         popenv(attr, val, from_end=False, **kwargs)
-        
+
 class Append(Action):
     def _do_action(self, attr, val, **kwargs):
         return appendenv(attr, val, **kwargs)
     def _undo_action(self, attr, val, **kwargs):
         logger.debug("undoing Append - %s - %s - %r" % (attr, val, kwargs['environ'].get(attr)))
         popenv(attr, val, from_end=True, **kwargs)
-        
+
 class Set(Action):
     def _do_action(self, attr, val, **kwargs):
         orig_val = kwargs['environ'].get(attr)
@@ -977,7 +977,7 @@ class Set(Action):
     def _undo_action(self, attr, val, **kwargs):
         logger.debug("undoing Set - %s - %s - %r" % (attr, val, kwargs['environ'].get(attr)))
         setenv(attr, val, **kwargs)
-        
+
 # Unset is done by Set(attr, None)
 #
 #class Unset(Action):
@@ -996,7 +996,7 @@ class Pop(Action):
             appendenv(attr, val, **kwargs)
         else:
             prependenv(attr, val, **kwargs)
-        
+
 
 #===============================================================================
 # Package Files
@@ -1079,7 +1079,7 @@ class BasePackage(object):
     @property
     def environ(self):
         return self._session.environ
-    
+
     def environ_vars(self):
         return self._environ_obj.__dict__['_env_vars']
 
@@ -1092,7 +1092,7 @@ class BasePackage(object):
         session = pickle_dict.pop('_session', None)
         return pickle_dict
 
-            
+
 class FakePackage(BasePackage):
     '''
     A package that does not exist on disk
@@ -1132,7 +1132,7 @@ class RealPackage(BasePackage):
     def get_dependents(self):
         '''
         return a list of (dependent, explicit_version)
-        
+
         explicit_version will be True if this dependent specified a version
         of the current package
         '''
@@ -1201,7 +1201,7 @@ class PackageInterface(RealPackage):
             version, hash = self.environ[VER_PREFIX + self.name].split(META_SEP)
         except KeyError:
             raise PackageRemovedError(self.name)
-        
+
         if self._version:
             if self._version != version:
                 raise InvalidPackageVersion(self.name, self._version, 'active version is %s' % version)
@@ -1258,7 +1258,7 @@ class Package(RealPackage):
                     for pkg in pkglist.split(','):
                         pkgs.append(pkg.strip())
         return pkgs
-  
+
     @property
     def fullname(self):
         return _joinname(self.name, self.version)
@@ -1284,7 +1284,7 @@ class Package(RealPackage):
                 raise InvalidPackageVersion(self.name, version,
                                             '(valid choices are %s)' % ver_choices)
         return version
-    
+
     @propertycache
     def default_version(self):
         version = self.environ.get('SETPKG_%s_DEFAULT_VERSION' % self.name.upper())
@@ -1407,14 +1407,14 @@ class Package(RealPackage):
         if self.config.has_option('main', 'version-regex'):
             return re.compile('(?:' + self.config.get('main', 'version-regex') +')$')
         return None
-    
+
     @propertycache
     def version_from_regex(self):
         if (self.version_regex and
                 self.config.has_option('main', 'versions-from-regex')):
             return self.config.getboolean('main', 'versions-from-regex')
         return False
-                    
+
     @propertycache
     def version_parts(self):
         '''
@@ -1437,7 +1437,7 @@ class Package(RealPackage):
             except AttributeError:
                 logger.warn('could not split version using version-regex %r' % reg)
         return None
-                
+
     @propertycache
     def executable(self):
         '''
@@ -1463,7 +1463,7 @@ class Package(RealPackage):
             yield self._parent
             for parent in self._parent.parents:
                 yield parent
-    
+
     @propertycache
     def subpackages(self):
         '''
@@ -1479,14 +1479,14 @@ class Package(RealPackage):
 #===============================================================================
 class SessionStorage(object):
     '''Base class for storing persistent session data.
-    
+
     Should have a dictionary-like interface
-    
+
     Actual implentation should subclass from this.
     '''
     # Holds the session's pid
     SESSION_VAR = 'SETPKG_SESSION'
-    
+
     def __init__(self, session):
         '''Generally, this should not be overridden - override pre_init
         initialize_data, or post_init instead
@@ -1497,12 +1497,12 @@ class SessionStorage(object):
         if self.needs_data_init():
             self.initialize_data()
         self.post_init()
-            
+
     def init_type(self):
         '''Returns 'new' if no setpkg has been run in this or any parent process,
         'child' if setpkg has not been run in this process, but has in a parent,
         or 'done' if setpkg has been run in this process
-        ''' 
+        '''
         pid = self.session.environ.get(self.SESSION_VAR)
         if not pid:
             return 'new'
@@ -1510,27 +1510,27 @@ class SessionStorage(object):
             return 'child'
         else:
             return 'done'
-        
+
     def needs_data_init(self):
         return True
-            
+
     def initialize_data(self):
         '''Does whatever needs to be done to create 'new' session data
-        
+
         called the first time data is needed within a given process
         '''
         self.setpkg_pkg = FakePackage('setpkg', version='2.0',
                                       session=self.session)
         self.session._added.append(self.setpkg_pkg)
         getattr(self.setpkg_pkg._environ_obj, self.SESSION_VAR).set(self.session.pid)
-    
+
     def pre_init(self):
         pass
 
     def post_init(self):
         pass
 
-    
+
     def __getitem__(self, key):
         raise NotImplementedError
     def __setitem__(self, key, val):
@@ -1554,18 +1554,18 @@ class SessionShelf(SessionStorage):
         del self.shelf[key]
     def __contains__(self, key):
         return key in self.shelf
-    
+
     def pre_init(self):
         self.shelf = self._open_shelf()
 
     def needs_data_init(self):
         return self.init_type() != 'done'
-    
+
     def initialize_data(self):
         super(SessionShelf, self).initialize_data()
         self.shelf = self._open_shelf()
         getattr(self.setpkg_pkg._environ_obj, self.SHELF_FILE_VAR).set(self.filename)
-    
+
     def _open_shelf(self, protocol=None, writeback=False):
         """
         """
@@ -1613,7 +1613,7 @@ class SessionEnv(SessionStorage):
 
     # Would like to make these per-shell, but that would mean passing down the
     # shell somehow... seems like too much work for a limited benefit
-    
+
     # The Microsoft / Windows thing is just for a bug with platform.system(),
     # which returned 'Microsoft' for Vista, and 'Windows' for pretty much
     # all other windows flavors
@@ -1622,7 +1622,7 @@ class SessionEnv(SessionStorage):
                      # bash on Darwin seems unlimited (or at least, very large)
                      'Darwin':4000,
                      'Linux':120000}
-    
+
     # Length testers:
     # tcsh
     #   setenv LONG_VAR `python -c "print 'A'*4096"` && echo $LONG_VAR
@@ -1630,13 +1630,13 @@ class SessionEnv(SessionStorage):
     #   export LONG_VAR=`python -c "print 'set LONG_VAR=%s'%'A'*4096" && echo $LONG_VAR
     # dos
     #   python -c "print 'set LONG_VAR=%s'%('A'*50)" | cmd
-     
-    
+
+
     # Keep this a set value, so if data is pickled by one version of python and
     # read by another, we're ok... just need to make sure that this version is
     # available to all python versions that may run setpkg
     PICKLE_DATA_VER = 2
-    
+
     def __getitem__(self, key):
         return self.read_dict()[key]
     def __setitem__(self, key, val):
@@ -1649,7 +1649,7 @@ class SessionEnv(SessionStorage):
         self.write_dict(data)
     def __contains__(self, key):
         return key in self.read_dict()
-    
+
     def get_data_vars(self):
         data_vars = [x for x in self.session.environ
                      if x.startswith(self.SESSION_DATA_PREFIX)]
@@ -1659,13 +1659,13 @@ class SessionEnv(SessionStorage):
         data_var_nums = [int(x[len(self.SESSION_DATA_PREFIX):])
                          for x in data_vars]
         assert len(data_var_nums) == max(data_var_nums) + 1, "Setpkg session data variables %s* not sequential" % self.SESSION_DATA_PREFIX
-        
+
         vals = []
         for i in xrange(len(data_vars)):
             var = self.SESSION_DATA_PREFIX + str(i)
             vals.append(self.session.environ[var])
         return vals
-        
+
 
     def read_dict(self):
         rawstr = ''.join(self.get_data_vars())
@@ -1677,7 +1677,7 @@ class SessionEnv(SessionStorage):
             if isinstance(obj, BasePackage):
                 obj._session = self.session
         return package_dict
-    
+
     def write_dict(self, newdict):
         rawstr = self.binary_to_alpha(self.python_to_binary(newdict))
         remainder = rawstr
@@ -1710,16 +1710,16 @@ class SessionEnv(SessionStorage):
     # characters
     def alpha_to_binary(self, alphastr):
         return binascii.unhexlify(alphastr)
-    
+
     def binary_to_alpha(self, binarystr):
         return binascii.hexlify(binarystr)
-    
+
     def python_to_binary(self, py_obj):
         return zlib.compress(pickle.dumps(py_obj, protocol=self.PICKLE_DATA_VER))
-    
+
     def binary_to_python(self, bin_obj):
         return pickle.loads(zlib.decompress(bin_obj))
-        
+
 
 #===============================================================================
 # Session
@@ -1728,7 +1728,7 @@ class DefaultSessionMethod(object):
     """
     a decorator which will create and feed in a 'default' Session object if
     invoked from the class
-    
+
     This default Session will have a 'live' (not a copy) of os.environ set as
     it's environ dict (for speed - ie, to avoid a copy of a potentially large
     environment), and so this decorator should be used only on methods which
@@ -1755,7 +1755,7 @@ class Session(object):
 
     Utilizes a SessionStorage class to handle serializing / loading / saving
     of persistant data.
-    
+
     When adding a package, if the requested version of the package has not yet
     been set, the .pykg file is executed in a special python environment created
     by the session.
@@ -1775,7 +1775,7 @@ class Session(object):
     def __new__(cls, pid=None, storage_class=SessionEnv, environ=None):
         if pid is None:
             pid = _getppid()
-        
+
         if environ is None:
             environ = dict(os.environ)
 
@@ -1790,11 +1790,11 @@ class Session(object):
         self.entry_level = 0
 
         return self
-        
+
     @property
     def environ(self):
         return self._environ_dict
-        
+
 #    def __enter__(self):
 #        #logger.debug( "new session %s" % self.filename )
 #        self.entry_level += 1
@@ -1819,7 +1819,7 @@ class Session(object):
          - load the package requirements
          - execfile the package file
          - load package dependents
-        ''' 
+        '''
         g = {}
         # environment
         g['env'] = package._environ_obj
@@ -1860,14 +1860,14 @@ class Session(object):
         #logger.debug('%s: execfile %r' % (package.fullname, package.file))
 #        try:
             # add the current version to the environment tracked by this pacakge
-        setattr(g['env'], '%s%s' % (VER_PREFIX, package.name), 
+        setattr(g['env'], '%s%s' % (VER_PREFIX, package.name),
                 '%s%s%s' % (package.version, META_SEP, package.hash))
 
         def load(section, prefix, parent):
             pkgs = package._read_packagelist(section)
             for pkg in pkgs:
                 self.add_package(pkg, parent=parent, depth=depth+1)
-            return pkgs  
+            return pkgs
 
         requirements = load('requires', 'DEPENDENCIES', None)
 
@@ -1876,7 +1876,7 @@ class Session(object):
             shortname = _splitname(pkg)[0]
             var = getattr(g['env'], 'SETPKG_DEPENDENTS_%s' % (shortname,))
             var.append(package.name, expand=False)
-        
+
         # add our direct dependencies, using shortname
         var = getattr(g['env'], 'SETPKG_DEPENDENCIES_%s' % (package.name,))
         values = set(var.split())
@@ -1893,7 +1893,7 @@ class Session(object):
 #            traceback.print_exc(file=self.out)
 #            raise PackageExecutionError(package.name, str(err))
         #logger.debug('%s: execfile complete' % package.fullname)
-         
+
         subpackages = load('subs', 'DEPENDENTS', package)
 
 #        # not necessary:: we can get the list from [subs]
@@ -1905,7 +1905,7 @@ class Session(object):
     def get_package(self, name):
         '''
         find a package on SETPKG_PATH and return a Package class.
-    
+
         Parameters
         ----------
         name : str
@@ -1956,7 +1956,7 @@ class Session(object):
                         return
                 else:
                     reloading = True
-                    self._status('switching', 
+                    self._status('switching',
                                  '%s --> %s' % (curr.fullname, package.version)
                                  , '+', depth)
                     self.remove_package(curr.name, depth=depth, reloading=True)
@@ -1970,7 +1970,7 @@ class Session(object):
         del package.versions
         del package.config
         self.storage[package.name] = package
-        
+
         if reloading:
             # if we just reloaded this package, also reload the dependents
             for dependent in package.get_dependents():
@@ -2000,7 +2000,7 @@ class Session(object):
         for name, env_var in package.environ_vars().iteritems():
             for action in reversed(env_var._actions):
                 action.undo(package._environ_obj, name)
-        
+
         del self.storage[shortname]
         self._removed.append(package)
 
@@ -2019,7 +2019,7 @@ class Session(object):
     @propertycache
     def storage(self):
         return self.storage_class(self)
-            
+
     @property
     def added(self):
         return self._added
@@ -2027,11 +2027,11 @@ class Session(object):
     @property
     def removed(self):
         return self._removed
-    
+
     def altered(self, other=None):
         if other is None:
             other = os.environ
-            
+
         # we'll be modifying this, make a copy
         removed = dict(other)
         changed = {}
@@ -2045,11 +2045,11 @@ class Session(object):
         # After popping off all vals in self.environ, removed will have left
         # only values that have been removed...
         return changed, removed
-    
+
     #===========================================================================
     # Info methods
     #===========================================================================
-    
+
     @DefaultSessionMethod
     def _pkgpaths(self):
         if 'SETPKG_PATH' not in self.environ:
@@ -2062,7 +2062,7 @@ class Session(object):
         return the version and pykg file hash for the given pkg
         '''
         shortname = _shortname(name)
-        
+
         data = self.environ.get(VER_PREFIX + shortname)
         if data is None:
             return (None, None)
@@ -2093,7 +2093,7 @@ class Session(object):
     def current_version(self, name):
         '''
         get the currently set version for the given pkg, or None if it is not set
-    
+
         Parameters
         ----------
         name : str
@@ -2115,7 +2115,7 @@ class Session(object):
     def find_package_file(self, name):
         '''
         given an unversioned package name, search SETPKG_PATH for the .pykg file
-    
+
         Parameters
         ----------
         name : str
@@ -2155,7 +2155,7 @@ class Session(object):
                              regexp=False):
         '''
         list available packages in NAME-VERSION format.
-    
+
         Parameters
         ----------
         package : str
@@ -2168,17 +2168,17 @@ class Session(object):
         regexp : bool
             if versions is True, and versions-from-regexp is enabled, whether to list
             this regexp in the versions as well
-    
+
         '''
         packages = []
         if package:
             package_files = [self.find_package_file(package)]
         else:
             package_files = sorted(self.walk_package_files())
-    
+
         if not versions:
             return [ os.path.splitext(os.path.basename(file))[0] for file in package_files]
-    
+
         for package_file in package_files:
             try:
                 pkg = Package(package_file, session=self)
@@ -2193,15 +2193,15 @@ class Session(object):
     def list_package_versions(self, package=None, package_file=None,
                               aliases=False, regexp=False):
         '''list all available versions for a package
-        
+
         Parameters
         ----------
         package : str or Package
             name of package, or Package object to list versions for.
-            Exactly one of package and package_file must be provided (and not both) 
+            Exactly one of package and package_file must be provided (and not both)
         package_file : str
             path of package to list versions for.
-            Exactly one of package and package_file must be provided (and not both) 
+            Exactly one of package and package_file must be provided (and not both)
         aliases : bool
             if versions is True, whether to list all aliases as well
         regexp : bool
@@ -2217,7 +2217,7 @@ class Session(object):
                 package_file = package.file
             else:
                 package_file = self.find_package_file(package)
-    
+
         versions = []
         try:
             pkg = Package(package_file, session=self)
@@ -2231,7 +2231,7 @@ class Session(object):
         except PackageError, err:
             logger.debug(str(err))
         return versions
-    
+
     @DefaultSessionMethod
     def currentPackageVersions(self, packageList):
         '''Given a packageList, for any package which is versionless and is set
@@ -2245,7 +2245,7 @@ class Session(object):
                 package = _joinname(package, activePackages[package])
             newPackageList.append(package)
         return newPackageList
-                
+
 
 def _update_environ(session, other=None):
     if other is None:
@@ -2265,7 +2265,7 @@ def setpkg(packages, force=False, update_pypath=False, pid=None, environ=None):
         set to True if changes to PYTHONPATH should be
         reflected in sys.path
         (obselete - ignored - PYTHONPATH changes are always reflected in sys.path)
-    force : bool 
+    force : bool
         set to True if package should be re-run (unloaded, then
         loaded again) if already loaded
     """
@@ -2273,8 +2273,8 @@ def setpkg(packages, force=False, update_pypath=False, pid=None, environ=None):
     if isinstance(packages, basestring):
         packages = [packages]
     if environ is None:
-        environ = os.environ    
-    
+        environ = os.environ
+
     session = Session(pid=pid, environ=dict(environ))
     for name in packages:
         session.add_package(name, force=force)
@@ -2305,7 +2305,7 @@ def unsetpkg(packages, recurse=False, update_pypath=False, pid=None,
     for name in packages:
         if not session.is_pkg_set(name):
             raise PackageError(name, "package is not currently set")
-    
+
     for name in packages:
         # Make sure that we don't try to remove a package that was already
         # recursively removed by another package

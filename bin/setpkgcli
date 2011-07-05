@@ -21,10 +21,10 @@ class ExtraUsageInfoFormatter(argparse.HelpFormatter):
     # Subclass and set this to something informative, and it will be appended
     # the usage string...
     extra_usage = ''''''
-    
+
     def _format_usage(self, *args, **kwargs):
         return super(ExtraUsageInfoFormatter, self)._format_usage(*args, **kwargs) + self.extra_usage
-        
+
 class PkgHelpFormatter(ExtraUsageInfoFormatter):
     extra_usage = '''
 For a list of all available packages: pkg ls --all
@@ -33,7 +33,7 @@ For help setting packages:            pkg set -h / setpkg -h
 For help with other package commands: pkg -h
 ------------------------------------------------------------
 '''
-   
+
 
 
 # start and stop parameters for effects
@@ -61,7 +61,7 @@ def _get_shell(shell, *args, **kwargs):
     except KeyError, e:
         logger.error('unknown shell: %s (%s)' % (shell, e.args[0]))
         sys.exit(1)
-  
+
 def command(value):
     saved_stdout.write(value + '\n')
 
@@ -105,7 +105,7 @@ def doit(func, args):
         cmds.append(shell.setenv(name, value))
     for name in removed:
         cmds.append(shell.unsetenv(name))
-    
+
     for cmd in cmds:
         command(cmd)
         logger.debug(cmd)
@@ -139,7 +139,7 @@ def run_package(args):
 def info(args):
     # use raw os.environ for speed
     session = Session(environ=os.environ, pid=args.pid)
-    
+
     shortname, version = _splitname(args.package[0])
     curr_version = session.current_version(shortname)
     if curr_version is None:
@@ -157,7 +157,7 @@ def info(args):
         default_width = kwargs.get('default_width', 20)
         if len(widths) < len(data):
             widths += ( (default_width,) * (len(data) - len(widths)) )
-        
+
         data = list(data)
         if data and data[0]:
             data[0] += ':'
@@ -169,7 +169,7 @@ def info(args):
             line += d
         # user error to avoid removing whitespace formatting
         error(line)
-    
+
     def table(section, labels, columns, **kwargs):
         detail(section, default_color='blue', *['[%s]' % label for label in labels])
         for data in columns:
@@ -183,7 +183,7 @@ def info(args):
     else:
         aliases = package.aliases
     defaultVer = package.default_version
-    defaultVer = aliases.get(defaultVer, defaultVer)   
+    defaultVer = aliases.get(defaultVer, defaultVer)
 
     detail('name', package.name)
     detail('executable', package.executable)
@@ -191,7 +191,7 @@ def info(args):
     detail('default version', str(defaultVer))
     detail('subpackages', ', '.join(package.subpackages))
     detail('dependencies', ', '.join([pkg.origname for pkg in package.get_dependencies()]))
-    
+
     if curr_version:
         detail('dependents', ', '.join([pkg.origname for pkg in package.get_dependents()]))
     else:
@@ -202,7 +202,7 @@ def info(args):
     else:
         detail('active_version', '<inactive>', default_color='red')
     status('')
-    
+
     sys_aliases = package.system_aliases
     if sys_aliases:
         table('run commands',
@@ -216,7 +216,7 @@ def info(args):
         table('package aliases',
               ['alias', 'package'],
               [(alias, aliases[alias]) for alias in sorted(aliases)])
-    
+
     if curr_version:
 
         vals = []
@@ -230,10 +230,10 @@ def info(args):
                     var_name = name
                 else:
                     var_name = ''
-                    
+
                 # then the action...
                 action_name = type(action).__name__
-                
+
                 # then the value associated with that action - if it's set,
                 # we didn't store the exact value we set it to, so just use
                 # the current value
@@ -253,7 +253,7 @@ def alias(args):
     # use raw os.environ for speed
     session = Session(environ=os.environ, pid=args.pid)
     package_files = sorted(session.walk_package_files())
-    
+
     shell = _get_shell(args.shell)
     for package_file in package_files:
         try:
@@ -295,7 +295,7 @@ def env(args):
     else:
         raise
     command(cmd)
-     
+
 def cli():
     logger.debug(str(sys.argv))
 
@@ -303,7 +303,7 @@ def cli():
         prog='pkg',
         usage='%(prog)s [options]',
         description='Manage environment variables for a software package.')
-    
+
     parser.add_argument('--pid', metavar='PID', type=str, nargs='?',
                        help='current process id (usually stored in $$)')
 
