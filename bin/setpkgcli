@@ -71,7 +71,7 @@ def error(value):
 
 # using this kills whitespace formatting!
 def status(value):
-    saved_stdout.write('echo "%s";\n' % value)
+    saved_stdout.write("echo '%s';\n" % value)
 
 
 def list_packages(args):
