@@ -22,7 +22,10 @@ def repodir(env, pkg, version):
                 dev_root = env.LUMA_SOFT / 'dev'
             repodir = os.path.join(dev_root, env.USER.value())
     else:
-        repodir, ver = env.LUMA_SOFT.value(), version
+        if not env.USE_GLOBALSOFT:
+            repodir, ver = env.REPO_PATH.value(), version
+        else:
+            repodir, ver = env.LUMA_SOFT.value(), version
     return repodir, ver
 
 def stripdev(version):
