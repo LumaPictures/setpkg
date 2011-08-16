@@ -377,9 +377,11 @@ class propertycache(object):
     def __init__(self, func):
         self.func = func
         self.name = func.__name__
-    def __get__(cls, self, type=None): #@NoSelf
-        result = cls.func(self)
-        setattr(self, cls.name, result)
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            return None
+        result = self.func(instance)
+        setattr(instance, self.name, result)
         return result
 
 def _hashfile(filename):
