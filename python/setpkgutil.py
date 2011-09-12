@@ -5,8 +5,9 @@ def packagedir(env, pkg, version):
     '''
     use when a package corresponds exactly with a first-level repo subdirectory
     '''
-    repoRoot, version = repodir(env, pkg, version)
-    return os.path.join(repoRoot, pkg), version
+#    repoRoot, version = repodir(env, pkg, version)
+#    return os.path.join(repoRoot, pkg), version
+    return os.path.join(env.REPO_PATH.value(), pkg), version
 
 def repodir(env, pkg, version):
     '''

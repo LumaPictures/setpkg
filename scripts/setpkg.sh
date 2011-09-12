@@ -1,29 +1,21 @@
 
-if [ -z "$SETPKG_ROOT" ]; then
+if [[ -z $SETPKG_ROOT ]]; then
     # This will only have any point if it's sourced, so just use $BASH_SOURCE[0]
-	thisfile=$(python -c "import os; print os.path.normcase(os.path.normpath(os.path.realpath(os.path.abspath('''${BASH_SOURCE[0]}'''))))")
+	thisfile=$(python -c "import os;print os.path.normcase(os.path.normpath(os.path.realpath(os.path.abspath('''${BASH_SOURCE[0]}'''))))")
 	export SETPKG_ROOT="$(dirname $(dirname $thisfile))"
 fi
 
-if [ -z "$SETPKG_PATH" ]; then
-    export SETPKG_PATH="$SETPKG_ROOT/packages"
-fi
+[[ $SETPKG_PATH ]] || export SETPKG_PATH="$SETPKG_ROOT/packages"
 
-if [ -z "$PYTHONPATH" ]; then
-    export PYTHONPATH="$SETPKG_ROOT/python"
-else
-    export PYTHONPATH="$PYTHONPATH:$SETPKG_ROOT/python"
-fi
+[[ $PYTHONPATH ]] && export PYTHONPATH=$PYTHONPATH:$SETPKG_ROOT/python || export PYTHONPATH=$SETPKG_ROOT/python
 
-if [ -z "$SETPKG_PYTHONBIN" ]; then
-    export SETPKG_PYTHONBIN=`which python`
-fi
+[[ $SETPKG_PYTHONBIN ]] || export SETPKG_PYTHONBIN=$(which python)
 
-# Bash aliases are not inherited, unlike tcsh aliases; so make them functions
-# and export with export -f
+# Bash aliases are not inherited, unlike tcsh aliases
+# Instead, make them functions and export with "export -f"
 
-function pkg { 
-    eval `$SETPKG_PYTHONBIN $SETPKG_ROOT/bin/setpkgcli --shell bash --pid $$ "$@"`
+function pkg {
+    eval $($SETPKG_PYTHONBIN $SETPKG_ROOT/bin/setpkgcli --shell bash --pid $$ "$@")
 }
 export -f pkg
 
