@@ -80,7 +80,7 @@ env.REPO_PATH = repoPath
 
 # Other Environment Variables --------------------------------------------------
 env.SH_PATH = '$REPO_PATH/shell'
-#env.SETPKG_PATH += '$SH_PATH/packages'
+env.SETPKG_PATH += '$SH_PATH/packages'
 
 env.PATH += '$LUMA_SOFT/csh'
 env.PATH += '$SH_PATH'
