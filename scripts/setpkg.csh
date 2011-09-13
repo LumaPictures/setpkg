@@ -1,7 +1,6 @@
 
 set called=($_)
 
-echo $called
 if ( ! $?SETPKG_ROOT ) then
     # This will only have any point if it's sourced, so just use $BASH_SOURCE[0]
     set sourceArg="${called[2]}"
