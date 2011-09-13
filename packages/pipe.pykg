@@ -1,6 +1,6 @@
 '''
 [main]
-version-regex = ((\d+)\.(\d+))|([a-zA-Z0-9]+)
+version-regex = ((\d+)\.(\d+))|([a-zA-Z0-9_]+)
 versions-from-regex = True
 default-version = luma
 
