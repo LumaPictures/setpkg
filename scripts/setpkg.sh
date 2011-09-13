@@ -1,11 +1,11 @@
 
-if [[ -z $SETPKG_ROOT ]]; then
+[[ -z $SETPKG_ROOT ]] && {
     # This will only have any point if it's sourced, so just use $BASH_SOURCE[0]
 	thisfile=$(python -c "import os;print os.path.normcase(os.path.normpath(os.path.realpath(os.path.abspath('''${BASH_SOURCE[0]}'''))))")
-	export SETPKG_ROOT="$(dirname $(dirname $thisfile))"
-fi
+	export SETPKG_ROOT=$(dirname $(dirname $thisfile))
+}
 
-[[ $SETPKG_PATH ]] || export SETPKG_PATH="$SETPKG_ROOT/packages"
+[[ $SETPKG_PATH ]] || export SETPKG_PATH=$SETPKG_ROOT/packages
 
 [[ $PYTHONPATH ]] && export PYTHONPATH=$PYTHONPATH:$SETPKG_ROOT/python || export PYTHONPATH=$SETPKG_ROOT/python
 
@@ -13,7 +13,6 @@ fi
 
 # Bash aliases are not inherited, unlike tcsh aliases
 # Instead, make them functions and export with "export -f"
-
 function pkg {
     eval $($SETPKG_PYTHONBIN $SETPKG_ROOT/bin/setpkgcli --shell bash --pid $$ "$@")
 }
