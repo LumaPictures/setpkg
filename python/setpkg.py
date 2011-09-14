@@ -1796,6 +1796,7 @@ class DefaultSessionMethod(object):
             instance = owner(environ=os.environ)
         def bound_func(*args, **kwargs):
             return self.method(instance, *args, **kwargs)
+        bound_func.DEFAULT_SESSION_METHOD = self.method
         return bound_func
 
 class Session(object):
@@ -1886,7 +1887,23 @@ class Session(object):
         def subpkg(subname):
             self.add_package(subname, parent=package, depth=depth+1)
         g['setpkg'] = subpkg
-        for n in ['is_pkg_set', 'current_version']:
+
+        # Considered doing automated detection / adding of all
+        # DefaultSessionMethod funcs to the global namespace...
+        # but then decided it's better to have explicit control...
+#        def isDefaultSessionMethod(x):
+#            meth = getattr(x, 'DEFAULT_SESSION_METHOD', None)
+#            if not meth:
+#                return False
+#            # Don't want hidden methods
+#            return not getattr(x, '__name__', '_').startswith('_')
+#
+#        for name, meth in inspect.getmembers(self, isDefaultSessionMethod):
+#            g[name] = meth
+        for n in ('is_pkg_set', 'current_version', 'current_versions',
+                  'find_package_file', 'walk_package_files',
+                  'list_active_packages', 'list_package_choices',
+                  'list_package_versions', 'currentPackageVersions'):
             g[n] = getattr(self, n)
 
         # platform utilities
