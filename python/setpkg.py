@@ -254,7 +254,7 @@ Installation
 ==================================
 
 ----------------------------------
-Environment Variables
+Core Environment Variables
 ----------------------------------
 
 ``SETPKG_ROOT``
@@ -268,7 +268,33 @@ Environment Variables
     set before the shell-specific startup scripts are called.
 
 ``SETPKG_PATH``
-    search path for ``.pykg`` files. defaults to ``$SETPKG_ROOT/packages``
+    Search path for ``.pykg`` files. defaults to ``$SETPKG_ROOT/packages``
+
+
+----------------------------------
+Optional Environment Variables
+----------------------------------
+
+``SETPKG_<XXXX>_DEFAULT_VERSION``
+    Used to override a default version set in any ``.pykg`` file.
+    Replace <XXXX> with the base package name (matching the base name of its .pykg) in all-caps.
+    The variable can be set to any valid version defined in the ``.pykg``
+
+    An example using the `nuke` package (where 6.0v6 is the default defined in the ``.pykg``):
+
+        $ pkg set nuke
+        adding:     [+]  nuke-6.0v6
+        adding:     [+]    python-2.5
+        adding:     [+]      lumaTools-1.0
+        adding:     [+]      pyexternal-1.0
+        adding:     [+]        pymel-1.0
+        adding:     [+]    djv-0.8.3.p2
+        $ pkg unset nuke
+        removing:   [-]  nuke-6.0v6
+        $ export SETPKG_NUKE_DEFAULT_VERSION=6.1v2
+        $ pkg set nuke
+        adding:     [+]  nuke-6.1v2
+
 
 ----------------------------------
 OSX/Linux
@@ -449,7 +475,7 @@ def _getppid():
 # external dependencies...
 def executableOutput(exeAndArgs, convertNewlines=True, stripTrailingNewline=True,
                      returnCode=False, input=None, **kwargs):
-    """Will return the text output of running the given executable with the given arguments.
+    '''Will return the text output of running the given executable with the given arguments.
 
     This is just a convenience wrapper for subprocess.Popen, so the exeAndArgs argment
     should have the same format as the first argument to Popen: ie, either a single string
@@ -481,7 +507,7 @@ def executableOutput(exeAndArgs, convertNewlines=True, stripTrailingNewline=True
     the combined output of stdout and stderr.
 
     Finally, since maya's python build doesn't support universal_newlines, this is always set to False -
-    however, set convertNewlines to True for an equivalent result."""
+    however, set convertNewlines to True for an equivalent result.'''
 
     kwargs.setdefault('stdout', subprocess.PIPE)
     kwargs.setdefault('stderr', subprocess.STDOUT)
@@ -1210,7 +1236,7 @@ class RealPackage(BasePackage):
             return {}
 
     def required_version(self, package):
-        return PackageInterface(package, session=self._session).get_dependency_versions()[self.name]
+        return PackageInterface(package, session=self._session).get_dependency_versions().get(self.name)
 
     def is_active(self):
         active = bool(self.environ.get(VER_PREFIX + self.name))
@@ -1616,8 +1642,8 @@ class SessionShelf(SessionStorage):
         getattr(self.setpkg_pkg._environ_obj, self.SHELF_FILE_VAR).set(self.filename)
 
     def _open_shelf(self, protocol=None, writeback=False):
-        """
-        """
+        '''
+        '''
         pid = self.session.pid
         environ = self.session.environ
         if self.SHELF_FILE_VAR in environ:
@@ -1774,7 +1800,7 @@ class SessionEnv(SessionStorage):
 # Session
 #===============================================================================
 class DefaultSessionMethod(object):
-    """
+    '''
     a decorator which will create and feed in a 'default' Session object if
     invoked from the class
 
@@ -1784,7 +1810,7 @@ class DefaultSessionMethod(object):
     will not alter the environment (ie, information gathering methods, such
     as ones which query SETPKG_VERSION_* to see which packages are currently
     set, etc)
-    """
+    '''
     def __init__(self, method):
         self.method = method
 
@@ -1864,7 +1890,7 @@ class Session(object):
 
     def _exec_package(self, package, depth=0):
         '''
-        excecute the pacakge.
+        Excecute the pacakge.
          - setup the python globals
          - load the package requirements
          - execfile the package file
@@ -1970,12 +1996,12 @@ class Session(object):
 
     def get_package(self, name):
         '''
-        find a package on SETPKG_PATH and return a Package class.
+        Find a package on SETPKG_PATH and return a Package class.
 
         Parameters
         ----------
         name : str
-            a versioned or unversioned package name
+            A versioned or unversioned package name
         '''
         shortname, version = _splitname(name)
         return Package(self.find_package_file(shortname), version, session=self)
@@ -2042,7 +2068,9 @@ class Session(object):
             for dependent in package.get_dependents():
                 req_ver = package.required_version(dependent.name)
                 if req_ver:
-                    if req_ver != package.version:
+                    if req_ver == package.version:
+                        self.add_package(dependent.fullname, depth=depth+1, force=True)
+                    else:
                         # TODO: prepend dependent's variables
                         logger.warn('WARNING: %s requires %s' % (dependent.fullname, _joinname(package.name, req_ver)))
                 else:
@@ -2125,7 +2153,7 @@ class Session(object):
     @DefaultSessionMethod
     def _current_data(self, name):
         '''
-        return the version and pykg file hash for the given pkg
+        Return the version and pykg file hash for the given pkg
         '''
         shortname = _shortname(name)
 
@@ -2143,7 +2171,7 @@ class Session(object):
     @DefaultSessionMethod
     def is_pkg_set(self, name):
         '''
-        return whether the package is set. if a package version is supplied,
+        Return whether the package is set. If a package version is supplied,
         will also check that this is the version is active
         '''
         version = self.current_version(name)
@@ -2158,19 +2186,19 @@ class Session(object):
     @DefaultSessionMethod
     def current_version(self, name):
         '''
-        get the currently set version for the given pkg, or None if it is not set
+        Get the currently set version for the given pkg, or None if it is not set
 
         Parameters
         ----------
         name : str
-            a versioned or unversioned package name
+            A versioned or unversioned package name
         '''
         return self._current_data(name)[0]
 
     @DefaultSessionMethod
     def current_versions(self):
         '''
-        return a dictionary of shortname to version for all active packages
+        Return a dictionary of shortname to version for all active packages
         '''
         return dict((key[len(VER_PREFIX):], val.split(META_SEP)[0])
                     for key, val in self.environ.iteritems()
@@ -2180,12 +2208,12 @@ class Session(object):
     @DefaultSessionMethod
     def find_package_file(self, name):
         '''
-        given an unversioned package name, search SETPKG_PATH for the .pykg file
+        Given an unversioned package name, search SETPKG_PATH for the .pykg file
 
         Parameters
         ----------
         name : str
-            a versioned or unversioned package name
+            A versioned or unversioned package name
         '''
         for path in self._pkgpaths():
             file = os.path.join(_expand(path), (name + '.pykg'))
@@ -2225,14 +2253,14 @@ class Session(object):
         Parameters
         ----------
         package : str
-            name of package to list versions for.  if None, lists all available
+            Name of package to list versions for.  if None, lists all available
             packages and versions
         versions : bool
-            whether to list all versions for a package
+            Whether to list all versions for a package
         aliases : bool
-            if versions is True, whether to list all aliases as well
+            If versions is True, whether to list all aliases as well
         regexp : bool
-            if versions is True, and versions-from-regexp is enabled, whether to list
+            If versions is True, and versions-from-regexp is enabled, whether to list
             this regexp in the versions as well
 
         '''
@@ -2263,15 +2291,15 @@ class Session(object):
         Parameters
         ----------
         package : str or Package
-            name of package, or Package object to list versions for.
+            Name of package, or Package object to list versions for.
             Exactly one of package and package_file must be provided (and not both)
         package_file : str
-            path of package to list versions for.
+            Path of package to list versions for.
             Exactly one of package and package_file must be provided (and not both)
         aliases : bool
-            if versions is True, whether to list all aliases as well
+            If versions is True, whether to list all aliases as well
         regexp : bool
-            if versions is True, and version-by-regexp is enabled, whether to list
+            If versions is True, and version-by-regexp is enabled, whether to list
             this regexp in the versions as well
         '''
         if not package or package_file:
@@ -2324,17 +2352,17 @@ def _update_environ(session, other=None):
     return changed, removed
 
 def setpkg(packages, force=False, update_pypath=False, pid=None, environ=None):
-    """
+    '''
     Parameters
     ----------
     update_pythonpath : bool
-        set to True if changes to PYTHONPATH should be
+        Set to True if changes to PYTHONPATH should be
         reflected in sys.path
         (obselete - ignored - PYTHONPATH changes are always reflected in sys.path)
     force : bool
-        set to True if package should be re-run (unloaded, then
+        Set to True if package should be re-run (unloaded, then
         loaded again) if already loaded
-    """
+    '''
     logger.debug('setpkg %s' % ([force, update_pypath, pid, sys.executable]))
     if isinstance(packages, basestring):
         packages = [packages]
@@ -2349,17 +2377,17 @@ def setpkg(packages, force=False, update_pypath=False, pid=None, environ=None):
 
 def unsetpkg(packages, recurse=False, update_pypath=False, pid=None,
              environ=None):
-    """
+    '''
     Parameters
     ----------
     update_pythonpath : bool
-        set to True if changes to PYTHONPATH should be
+        Set to True if changes to PYTHONPATH should be
         reflected in sys.path
         (obselete - ignored - PYTHONPATH changes are always reflected in sys.path)
     force : bool
-        set to True if package should be re-run (unloaded, then
+        Set to True if package should be re-run (unloaded, then
         loaded again) if already loaded
-    """
+    '''
     logger.debug('unsetpkg %s' % ([recurse, update_pypath, pid, sys.executable]))
     if isinstance(packages, basestring):
         packages = [packages]
