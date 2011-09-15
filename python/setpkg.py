@@ -1236,7 +1236,7 @@ class RealPackage(BasePackage):
             return {}
 
     def required_version(self, package):
-        return PackageInterface(package, session=self._session).get_dependency_versions()[self.name]
+        return PackageInterface(package, session=self._session).get_dependency_versions().get(self.name)
 
     def is_active(self):
         active = bool(self.environ.get(VER_PREFIX + self.name))
