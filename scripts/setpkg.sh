@@ -14,7 +14,7 @@
 # Bash aliases are not inherited, unlike tcsh aliases
 # Instead, make them functions and export with "export -f"
 function pkg {
-    eval $($SETPKG_PYTHONBIN $SETPKG_ROOT/bin/setpkgcli --shell bash --pid $$ "$@")
+    eval `$SETPKG_PYTHONBIN $SETPKG_ROOT/bin/setpkgcli --shell bash --pid $$ "$@"`
 }
 export -f pkg
 
