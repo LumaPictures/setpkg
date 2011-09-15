@@ -50,3 +50,4 @@ syntax: regexp
 (^|/)\#[^/]*\#$
 (^|/)\.\#[^/]*
 (^|/)\.[^/]*\.swp
+^python/setpkgutil.py$
