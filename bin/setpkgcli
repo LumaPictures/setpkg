@@ -189,6 +189,10 @@ def info(args):
     detail('executable', package.executable)
     detail('versions', ', '.join(session.list_package_versions(package, regexp=True)))
     detail('default version', str(defaultVer))
+    if curr_version:
+        detail('active version', curr_version, colors=('cyan bold', 'green bold'))
+    else:
+        detail('active version', '<inactive>', colors=('cyan bold',), default_color='red')
     detail('subpackages', ', '.join(package.subpackages))
     detail('dependencies', ', '.join([pkg.origname for pkg in package.get_dependencies()]))
 
@@ -196,11 +200,6 @@ def info(args):
         detail('dependents', ', '.join([pkg.origname for pkg in package.get_dependents()]))
     else:
         detail('dependents', '<inactive>', default_color='red')
-
-    if curr_version:
-        detail('active version', curr_version)
-    else:
-        detail('active_version', '<inactive>', default_color='red')
     status('')
 
     sys_aliases = package.system_aliases
