@@ -309,6 +309,8 @@ def cli():
 
     parser.add_argument('--shell', metavar='SHELL', type=str, nargs='?',
                        help='the shell from which this is run. (options are %s)' % ', '.join(shells.keys()))
+    parser.add_argument('--no-color', action='store_true', default=False,
+                        help='disable color output')
 
     subparsers = parser.add_subparsers(help='actions to perform', dest='subparser')
     #--- set -----------
@@ -384,8 +386,6 @@ def cli():
     info_parser = subparsers.add_parser('info', help='get information about a package')
     info_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
                              help='package to query')
-    info_parser.add_argument('--no-color', action='store_true', default=False,
-                             help='disable color output')
     info_parser.set_defaults(func=info)
 
     #--- aliases -----------
