@@ -34,7 +34,8 @@ For help with other package commands: pkg -h
 ------------------------------------------------------------
 '''
 
-
+default_color_enable=True
+enable_color=default_color_enable
 
 # start and stop parameters for effects
 _effects = {'none': 0, 'black': 30, 'red': 31, 'green': 32, 'yellow': 33,
@@ -47,7 +48,7 @@ _effects = {'none': 0, 'black': 30, 'red': 31, 'green': 32, 'yellow': 33,
 
 def render_effects(text, effects):
     'Wrap text in commands to turn on each effect.'
-    if not text:
+    if not text or not enable_color:
         return text
     start = [str(_effects[e]) for e in ['none'] + effects.split()]
     start = '\033[' + ';'.join(start) + 'm'
@@ -383,6 +384,8 @@ def cli():
     info_parser = subparsers.add_parser('info', help='get information about a package')
     info_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
                              help='package to query')
+    info_parser.add_argument('--no-color', action='store_true', default=False,
+                             help='disable color output')
     info_parser.set_defaults(func=info)
 
     #--- aliases -----------
@@ -408,6 +411,9 @@ def cli():
     parser.formatter_class = PkgHelpFormatter
 
     args = parser.parse_args()
+
+    global enable_color
+    enable_color = not args.no_color
 
     args.func(args)
 
