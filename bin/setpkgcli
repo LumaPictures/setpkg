@@ -276,7 +276,7 @@ def env(args):
         if value is None:
             logger.error("error: provide a value to prepend")
             sys.exit(1)
-        prependenv(var, value)
+        prependenv(var, value, no_dupes=True)
         cmd = shell.setenv(var, os.environ[var])
     elif args.action == 'pop':
         popenv(var, value)
