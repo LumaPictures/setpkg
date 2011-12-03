@@ -1412,7 +1412,10 @@ class Package(RealPackage):
         try:
             versions = [k.strip() for k, v in self.config.items('versions')]
         except NoSectionError:
-            raise PackageError(self.name, 'no [versions] section in package header')
+            if self.version_from_regex:
+               versions = []
+            else:
+                raise PackageError(self.name, 'no [versions] section in package header')
         regexp = self.version_regex
         if not regexp:
             regexp = self.VERSION_RE
@@ -1423,8 +1426,8 @@ class Package(RealPackage):
                 # add a tuple with the version_parts, for sorting
                 valid.append((match.groups(), version))
             else:
-                logger.warn( "version in package file is invalidly formatted: %r\n" % version )
-        if not valid:
+                logger.warn("version in package file is invalidly formatted: %r\n" % version)
+        if not valid and not self.version_from_regex:
             raise PackageError(self.name, "No valid versions were found")
         return [version for parts, version in sorted(valid)]
 
@@ -1439,7 +1442,9 @@ class Package(RealPackage):
             def expand_alias(alias, value):
                 if value is None:
                     return
-                elif value in self.versions:
+                elif (value in self.versions
+                      or (self.version_from_regex
+                          and self.version_regex.match(value))):
                     return value
                 else:
                     try:
