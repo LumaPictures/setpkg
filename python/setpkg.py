@@ -1383,6 +1383,8 @@ class Package(RealPackage):
         # False... probably I just don't understand how to use the defaults...
         # but can't find good docs / examples...
         config = ConfigParser()
+        # Make option names case-sensitive - for aliases and requires statements
+        config.optionxform = str
         try:
             lines = _parse_header(self.file)
             text = '\n'.join(lines)
