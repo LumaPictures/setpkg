@@ -434,7 +434,7 @@ class propertycache(object):
     '''
     class DoNotCacheSignal(Exception):
         def __init__(self, default=None):
-            self.default=default
+            self.default = default
 
         def __repr__(self):
             default = self.default
@@ -549,9 +549,9 @@ class Shell(object):
 
 class Bash(Shell):
     def setenv(self, key, value):
-        return "export %s=%s;" % ( key, value )
+        return "export %s=%s;" % (key, value)
     def unsetenv(self, key):
-        return "unset %s;" % ( key, )
+        return "unset %s;" % (key,)
     def alias(self, key, value):
         # bash aliases don't export to subshells; so instead define a function,
         # then export that function
@@ -559,11 +559,11 @@ class Bash(Shell):
 
 class Tcsh(Shell):
     def setenv(self, key, value):
-        return "setenv %s %s;" % ( key, value )
+        return "setenv %s %s;" % (key, value)
     def unsetenv(self, key):
-        return "unsetenv %s;" % ( key, )
+        return "unsetenv %s;" % (key,)
     def alias(self, key, value):
-        return "alias %s '%s';" % ( key, value)
+        return "alias %s '%s';" % (key, value)
 
 class WinShell(Shell):
     # These are variables where windows will construct the value from the value
@@ -733,7 +733,7 @@ def _prep_env_args(value, expand, root, environ):
     return value, environ
 
 def prependenv(name, value, expand=True, no_dupes=False, root=None, environ=None):
-    value, environ =  _prep_env_args(value, expand, root, environ)
+    value, environ = _prep_env_args(value, expand, root, environ)
 
     if name not in environ:
         environ[name] = value
@@ -761,7 +761,7 @@ def prependenv(name, value, expand=True, no_dupes=False, root=None, environ=None
     return value
 
 def appendenv(name, value, expand=True, no_dupes=False, root=None, environ=None):
-    value, environ =  _prep_env_args(value, expand, root, environ)
+    value, environ = _prep_env_args(value, expand, root, environ)
 
     if name not in environ:
         environ[name] = value
@@ -803,18 +803,18 @@ def prependenvs(name, value, root=None, environ=None):
     return value
 
 def setenv(name, value, expand=True, root=None, environ=None):
-    value, environ =  _prep_env_args(value, expand, root, environ)
+    value, environ = _prep_env_args(value, expand, root, environ)
 
     environ[name] = value
     #print "set", name, value
     return value
 
 def unsetenv(name, environ=None):
-    environ =  _prep_env_args(None, False, None, environ)[1]
+    environ = _prep_env_args(None, False, None, environ)[1]
     return environ.pop(name)
 
 def popenv(name, value, expand=True, root=None, environ=None, from_end=False):
-    value, environ =  _prep_env_args(value, expand, root, environ)
+    value, environ = _prep_env_args(value, expand, root, environ)
 
     try:
         current_value = environ[name]
@@ -825,7 +825,7 @@ def popenv(name, value, expand=True, root=None, environ=None, from_end=False):
         if from_end:
             reverse_parts = list(reversed(parts))
             try:
-                index = -( reverse_parts.index(value) + 1 )
+                index = -(reverse_parts.index(value) + 1)
             except ValueError:
                 return
         else:
@@ -1421,7 +1421,7 @@ class Package(RealPackage):
             match = self.VERSION_RE.match(version)
             if match:
                 # add a tuple with the version_parts, for sorting
-                valid.append( (match.groups(), version) )
+                valid.append((match.groups(), version))
             else:
                 logger.warn( "version in package file is invalidly formatted: %r\n" % version )
         if not valid:
@@ -1434,7 +1434,7 @@ class Package(RealPackage):
         A dictionary of {alias : version}. Aliases are recursively expanded.
         '''
         if self.config.has_section('aliases'):
-            aliases = dict([(k,v) for k,v in self.config.items('aliases')])
+            aliases = dict([(k, v) for k, v in self.config.items('aliases')])
 
             def expand_alias(alias, value):
                 if value is None:
@@ -1480,7 +1480,7 @@ class Package(RealPackage):
     @propertycache
     def version_regex(self):
         if self.config.has_option('main', 'version-regex'):
-            return re.compile('(?:' + self.config.get('main', 'version-regex') +')$')
+            return re.compile('(?:' + self.config.get('main', 'version-regex') + ')$')
         return None
 
     @propertycache
@@ -1671,12 +1671,12 @@ class SessionShelf(SessionStorage):
             flag = 'w'
             # TODO: add an exception for when the setpkg session no longer exists: it may
             # have been deleted by a cron job using tmpwatch
-            logger.info( "opening existing session %s" % filename )
+            logger.info("opening existing session %s" % filename)
         else:
             filename = os.path.join(tempfile.gettempdir(), (self.SESSION_PREFIX + pid))
             # create a new shelf
             flag = 'n'
-            logger.info( "opening new session %s" % filename )
+            logger.info("opening new session %s" % filename)
 
         self.filename = filename
         return shelve.DbfilenameShelf(filename, flag, protocol, writeback)
@@ -1911,7 +1911,7 @@ class Session(object):
 
         # setpkg command
         def subpkg(subname):
-            self.add_package(subname, parent=package, depth=depth+1)
+            self.add_package(subname, parent=package, depth=depth + 1)
         g['setpkg'] = subpkg
 
         # Considered doing automated detection / adding of all
@@ -1935,7 +1935,7 @@ class Session(object):
         # platform utilities
         import platform
         # filter local and non-functions
-        g.update([(k,v) for k,v in platform.__dict__.iteritems() \
+        g.update([(k, v) for k, v in platform.__dict__.iteritems() \
                   if not k.startswith('_') and inspect.isfunction(v)])
 
         try:
@@ -1946,7 +1946,7 @@ class Session(object):
                 logger.warn("setpkgutil contains object with protected name %r: ignoring" % o)
                 utildict.pop(o)
             # filter local
-            g.update([(k,v) for k,v in utildict.iteritems() if not k.startswith('_')])
+            g.update([(k, v) for k, v in utildict.iteritems() if not k.startswith('_')])
         except ImportError:
             pass
         #logger.debug('%s: execfile %r' % (package.fullname, package.file))
@@ -1958,7 +1958,7 @@ class Session(object):
         def load(section, prefix, parent):
             pkgs = package._read_packagelist(section)
             for pkg in pkgs:
-                self.add_package(pkg, parent=parent, depth=depth+1)
+                self.add_package(pkg, parent=parent, depth=depth + 1)
             return pkgs
 
         requirements = load('requires', 'DEPENDENCIES', None)
@@ -2021,7 +2021,7 @@ class Session(object):
             if force:
                 reloading = True
                 self._status('reloading', package.fullname, '+', depth)
-                self.remove_package(curr.name, depth=depth+1, reloading=True)
+                self.remove_package(curr.name, depth=depth + 1, reloading=True)
             else:
                 if curr.hash != package.hash:
                     reloading = True
@@ -2069,12 +2069,12 @@ class Session(object):
                 req_ver = package.required_version(dependent.name)
                 if req_ver:
                     if req_ver == package.version:
-                        self.add_package(dependent.fullname, depth=depth+1, force=True)
+                        self.add_package(dependent.fullname, depth=depth + 1, force=True)
                     else:
                         # TODO: prepend dependent's variables
                         logger.warn('WARNING: %s requires %s' % (dependent.fullname, _joinname(package.name, req_ver)))
                 else:
-                    self.add_package(dependent.fullname, depth=depth+1, force=True)
+                    self.add_package(dependent.fullname, depth=depth + 1, force=True)
         return package
 
     def remove_package(self, name, recurse=False, depth=0, reloading=False):
@@ -2100,14 +2100,14 @@ class Session(object):
 
         if recurse:
             for sub in package.subpackages:
-                self.remove_package(sub, recurse, depth+1)
+                self.remove_package(sub, recurse, depth + 1)
 
         elif not reloading:
             for depend in package.get_dependents():
                 # Make sure that the package hasn't already been removed
                 # because of some other recursive dependency...
                 if depend.name in self.current_versions():
-                    self.remove_package(depend.fullname, depth=depth+1)
+                    self.remove_package(depend.fullname, depth=depth + 1)
         return package
 
     @propertycache
