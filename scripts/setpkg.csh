@@ -42,7 +42,7 @@ alias allpkgs      'pkg ls --all \!*'
 pkg system-alias
 
 # completion
-set packages = `pkg ls --aliases`
+set packages = `pkg ls --aliases --all`
 set base_packages = `pkg ls --base`
 
 complete setpkg  p/1/\$packages/ n/-rehash/\$packages/
