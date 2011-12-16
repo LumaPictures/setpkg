@@ -1950,8 +1950,9 @@ class Session(object):
             utildict = setpkgutil.__dict__.copy()
             overrides = set(g.keys()).intersection(utildict.keys())
             for o in overrides:
-                logger.warn("setpkgutil contains object with protected name %r: ignoring" % o)
-                utildict.pop(o)
+                if g[o] is not utildict[o]:
+                    logger.warn("setpkgutil contains object with protected name %r: ignoring" % o)
+                    utildict.pop(o)
             # filter local
             g.update([(k, v) for k, v in utildict.iteritems() if not k.startswith('_')])
         except ImportError:
