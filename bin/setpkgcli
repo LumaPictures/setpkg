@@ -221,7 +221,7 @@ def info(args):
 
         vals = []
         for name, var in sorted( package.environ_vars().items() ):
-            if name.startswith('SETPKG_'):
+            if Package.INTERNAL_VARS_RE.match(name):
                 continue
             var_vals = []
             for action in var._actions:

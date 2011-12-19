@@ -1293,6 +1293,9 @@ class Package(RealPackage):
     '''
     # allowed characters: letters, numbers, period, dash, underscore
     VERSION_RE = re.compile('[a-zA-Z0-9\.\-_]+$')
+    # Way to ignore vars like SETPKG_DEPENDENCIES, etc... but still want to
+    # know about chagnes to, ie, SETPKG_PATH!
+    INTERNAL_VARS_RE = re.compile('^SETPKG_(?:VERSION|DEPENDENTS|DEPENDENCIES)_')
     def __init__(self, file, version=None, session=None):
         '''
         instantiate a package from a package file.
