@@ -23,12 +23,10 @@ if ( ! $?SETPKG_PYTHONBIN ) then
     setenv SETPKG_PYTHONBIN `which python`
 endif
 
-set bin = $SETPKG_ROOT/bin
-
 # core commands
 
-alias pkg       'eval `$SETPKG_PYTHONBIN $bin/setpkgcli --shell tcsh --pid $$ \!*`'
-alias debugpkg  'echo `$SETPKG_PYTHONBIN $bin/setpkgcli --shell tcsh --pid $$ \!*`'
+alias pkg       'eval `$SETPKG_PYTHONBIN $SETPKG_ROOT/bin/setpkgcli --shell tcsh --pid $$ \!*`'
+alias debugpkg  'echo `$SETPKG_PYTHONBIN $SETPKG_ROOT/bin/setpkgcli --shell tcsh --pid $$ \!*`'
 
 alias addenv    'pkg env prepend \!*'
 alias delenv    'pkg env pop \!*'
