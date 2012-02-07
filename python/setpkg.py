@@ -652,7 +652,6 @@ def get_shell_class(shell_name):
 #===============================================================================
 # Environment Classes
 #===============================================================================
-
 class EnvironSwapper(object):
     '''Temporarily sets os.environ to use a 'fake' environment
 
@@ -669,9 +668,16 @@ class EnvironSwapper(object):
     >>> os.environ['TESTVAR']
     'orig'
     '''
-    def __init__(self, environ=None):
+    def __init__(self, environ=None, removeNones=True):
         if environ is None:
             environ = dict(os.environ)
+        else:
+            environ = dict(environ)
+
+        if removeNones:
+            noneKeys = [k for k, v in environ.iteritems() if v is None]
+            for key in noneKeys:
+                del environ[key]
         self.oldEnviron = os.environ
         self.newEnviron = environ
 
