@@ -1000,6 +1000,9 @@ class EnvironmentVariable(object):
             value = value.value()
         return self.value() == value
 
+    def __ne__(self, value):
+        return not self == value
+
     def __div__(self, value):
         return os.path.join(self.value(), *value.split('/'))
 
