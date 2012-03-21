@@ -2070,7 +2070,7 @@ class Session(object):
                         self._status('reloading', package.fullname, '+', depth)
                         self.remove_package(curr.name, depth=depth, reloading=True)
                     else:
-                        return
+                        return package
                 else:
                     reloading = True
                     self._status('switching',
@@ -2399,6 +2399,32 @@ def setpkg(packages, force=False, update_pypath=False, pid=None, environ=None):
         session.add_package(name, force=force)
 
     return _update_environ(session, other=environ)
+
+def runpkg(packages, args, executable=None, force=False, pid=None, environ=None):
+    '''
+    Ensure a package is set, then execute it in a subprocess with optional args
+
+    Parameters
+    ----------
+    force : bool
+        Set to True if package should be re-run (unloaded, then
+        loaded again) if already loaded
+    '''
+    logger.debug('runpkg %s' % ([packages, args]))
+    if isinstance(packages, basestring):
+        packages = [packages]
+    if environ is None:
+        environ = os.environ
+
+    session = Session(pid=pid, environ=dict(environ))
+    packageClasses = [session.add_package(x, force=force) for x in packages]
+    _update_environ(session, other=environ)
+
+    # if no specific executable is specified, just assume the executable from
+    # the first package class in the list.
+    executable = executable if executable else packageClasses[0].executable
+    exeAndArgs = (executable,) + args
+    return executableOutput(exeAndArgs)
 
 def unsetpkg(packages, recurse=False, update_pypath=False, pid=None,
              environ=None):
