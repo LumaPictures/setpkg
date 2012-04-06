@@ -190,13 +190,11 @@ here's a simple example, using the Nuke package file outlined above::
     $ pkg set nuke
     adding:     [+]  nuke-6.1v2
     adding:     [+]    python-2.5
-    adding:     [+]      lumaTools-1.0
     adding:     [+]      pyexternal-1.0
     adding:     [+]        pymel-1.0
     adding:     [+]    djv-0.8.3.p2
     $ pkg ls
     djv-0.8.3.p2
-    lumaTools-1.0
     nuke-6.1v2
     pyexternal-1.0
     pymel-1.0
@@ -285,7 +283,6 @@ Optional Environment Variables
         $ pkg set nuke
         adding:     [+]  nuke-6.0v6
         adding:     [+]    python-2.5
-        adding:     [+]      lumaTools-1.0
         adding:     [+]      pyexternal-1.0
         adding:     [+]        pymel-1.0
         adding:     [+]    djv-0.8.3.p2

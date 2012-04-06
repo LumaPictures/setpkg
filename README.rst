@@ -22,7 +22,7 @@ Command-line utility:
 - pkg info: provides feeback on what packages are set, what environment variables they modify
 - pkg run: sets up an environment then executes an application
 - tab completion of packages
-- sessions are properly inherited in child shells 
+- sessions are properly inherited in child shells
 - can auto-create system aliases for app launching (e.g. alias maya-2011='pkg run maya-2011')
 
 Python Module:
@@ -76,10 +76,10 @@ Used to set global options
 
     executable-path :
         name of the executable for the package, used by ``pkg run``
-    
+
     version-regex :
         validates the version and splits it into components provided as VERSION_PARTS (see below)
-    
+
     default-version :
         the version used when no version is specified
 
@@ -93,7 +93,7 @@ example main section::
 requires
 ========
 
-Requirements are loaded before this current package is loaded. 
+Requirements are loaded before this current package is loaded.
 
 If a specific version of a package is given as a requirement
 and a different version of the package is already loaded, it (and all of its
@@ -195,13 +195,11 @@ here's a simple example, using the Nuke package file outlined above::
     $ pkg set nuke
     adding:     [+]  nuke-6.1v2
     adding:     [+]    python-2.5
-    adding:     [+]      lumaTools-1.0
     adding:     [+]      pyexternal-1.0
     adding:     [+]        pymel-1.0
     adding:     [+]    djv-0.8.3.p2
     $ pkg ls
     djv-0.8.3.p2
-    lumaTools-1.0
     nuke-6.1v2
     pyexternal-1.0
     pymel-1.0
@@ -245,9 +243,9 @@ here's a simple example, using the Nuke package file outlined above::
 
 There are also several handy aliases available:
 
-========  =========== 
+========  ===========
 alias     cmd
-========  =========== 
+========  ===========
 setpkg    pkg set
 unsetpkg  pkg unset
 runpkg    pkg run
