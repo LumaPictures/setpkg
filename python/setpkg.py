@@ -1985,6 +1985,22 @@ class Session(object):
 
         requirements = load('requires', 'DEPENDENCIES', None)
 
+        # Execute the file!
+#        try:
+        execfile(package.file, g)
+#        except Exception, err:
+#            # TODO: add line and context info for last frame
+#            import traceback
+#            traceback.print_exc(file=self.out)
+#            raise PackageExecutionError(package.name, str(err))
+        #logger.debug('%s: execfile complete' % package.fullname)
+
+        subpackages = load('subs', 'DEPENDENTS', package)
+
+        # ordering is important here, we only want to add this package to it's
+        # deps and subs AFTER we load the deps/subs to avoid circular dependencies
+        # and expecting a package when it has not been fully added yet.
+
         # add ourself to the dependents of our dependencies (or did i just blow your mind?)
         for pkg in requirements:
             shortname = _splitname(pkg)[0]
@@ -1997,18 +2013,6 @@ class Session(object):
         for pkg in requirements:
             if pkg not in values:
                 var.append(pkg, expand=False)
-
-        # Execute the file!
-#        try:
-        execfile(package.file, g)
-#        except Exception, err:
-#            # TODO: add line and context info for last frame
-#            import traceback
-#            traceback.print_exc(file=self.out)
-#            raise PackageExecutionError(package.name, str(err))
-        #logger.debug('%s: execfile complete' % package.fullname)
-
-        subpackages = load('subs', 'DEPENDENTS', package)
 
 #        # not necessary:: we can get the list from [subs]
 #        # add our subpackages
