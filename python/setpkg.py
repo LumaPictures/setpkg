@@ -2111,9 +2111,11 @@ class Session(object):
         package = self.storage[shortname]
         if version:
             if package.version != version:
-                raise InvalidPackageVersion(package, version,
-                    "cannot be removed because it is not currently set (active version is %s)" % (package.version,))
-
+                if version not in package.aliases:
+                    raise InvalidPackageVersion(package, version,
+                        "cannot be removed because it is not currently set (active version is %s)" % (package.version,))
+                else:
+                    version = package.aliases[version]
         if not reloading:
             self._status('removing', package.fullname, '-', depth)
 
@@ -2203,8 +2205,13 @@ class Session(object):
         version = self.current_version(name)
         if not version:
             return False
+
         ver = _splitname(name)[1]
+
         if ver:
+            pkg = self.get_package(_splitname(name)[0])
+            if ver in pkg.aliases:
+                ver = pkg.aliases[ver]
             return version == ver
         else:
             return True
