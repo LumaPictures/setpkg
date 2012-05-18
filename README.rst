@@ -279,6 +279,29 @@ Environment Variables
     between versions of python are known to cause problems. If not set, the full path to the python
     binary found at startup (using ``which python``)  will be stored in this variable.
 
+
+Optional Environment Variables
+==============================
+
+``SETPKG_<XXXX>_DEFAULT_VERSION``
+    Used to override a default version set in any ``.pykg`` file.
+    Replace <XXXX> with the base package name (matching the base name of its .pykg) in all-caps.
+    The variable can be set to any valid version defined in the ``.pykg``
+
+    An example using the `nuke` package (where 6.0v6 is the default defined in the ``.pykg``):
+
+        $ pkg set nuke
+        adding:     [+]  nuke-6.0v6
+        adding:     [+]    python-2.5
+        adding:     [+]      pyexternal-1.0
+        adding:     [+]        pymel-1.0
+        adding:     [+]    djv-0.8.3.p2
+        $ pkg unset nuke
+        removing:   [-]  nuke-6.0v6
+        $ export SETPKG_NUKE_DEFAULT_VERSION=6.1v2
+        $ pkg set nuke
+        adding:     [+]  nuke-6.1v2
+
 ----------------------------------
 OSX/Linux
 ----------------------------------

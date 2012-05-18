@@ -1,7 +1,35 @@
 """
-An environment variable management system written in python.  The system is
-based around .pykg files: python scripts executed in a special environment and
-containing python ini-style configuration headers.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+setpkg
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An environment variable management system written in python. The system is based around .pykg files: python
+scripts executed in a special environment, containing python ini-style configuration headers. It consists
+of a python API and a command-line utility.
+
+Overview:
+
+- one package file per application, written in python
+- tracks dependencies between packages (for example, changing maya versions can auto-change python versions)
+- tracks sub-packages (dependents)
+- knows to reload a package file when the file has been edited
+- using relative paths allows it to be used as a more flexible replacement for maya's module system
+- understands setting, prepending, and appending to env variables, and can properly undo each of these actions
+
+Command-line utility:
+
+- supports tcsh, bash, and DOS
+- pkg set: used to set the environment in the current shell (great for setting up build environments)
+- pkg info: provides feeback on what packages are set, what environment variables they modify
+- pkg run: sets up an environment then executes an application
+- tab completion of packages
+- sessions are properly inherited in child shells
+- can auto-create system aliases for app launching (e.g. alias maya-2011='pkg run maya-2011')
+
+Python Module:
+
+- sets os.environ
+- can generate a dictionary for passing to subprocess.Popen
 
 ==================================
 pykg files
@@ -268,10 +296,14 @@ Core Environment Variables
 ``SETPKG_PATH``
     Search path for ``.pykg`` files. defaults to ``$SETPKG_ROOT/packages``
 
+``SETPKG_PYTHONBIN`` :
+    Location of the python interpreter to use with setpkg. setpkg cannot use the python
+    interpreter on the executable ``PATH`` as this variable might change, and incompatibilities
+    between versions of python are known to cause problems. If not set, the full path to the python
+    binary found at startup (using ``which python``)  will be stored in this variable.
 
-----------------------------------
 Optional Environment Variables
-----------------------------------
+==============================
 
 ``SETPKG_<XXXX>_DEFAULT_VERSION``
     Used to override a default version set in any ``.pykg`` file.
