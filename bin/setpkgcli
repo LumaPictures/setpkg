@@ -296,6 +296,25 @@ def env(args):
         raise
     command(cmd)
 
+def set_default(args):
+    shell = _get_shell(args.shell)
+    package = args.package[0]
+    version = args.version
+    var = "SETPKG_%s_DEFAULT_VERSION" % package.upper()
+    if version is None:
+        # print default
+        pass
+        try:
+            error(os.environ[var])
+        except KeyError:
+            error("No default set")
+    elif version == "":
+        cmd = shell.unsetenv(var)
+        command(cmd)
+    else:
+        cmd = shell.setenv(var, version)
+        command(cmd)
+
 def cli():
     logger.debug(str(sys.argv))
 
@@ -396,12 +415,21 @@ def cli():
     env_parser = subparsers.add_parser('env', help='directly modify environment variables')
 
     env_parser.add_argument('action', metavar='ACTION', type=str, choices=['prepend', 'pop', 'set', 'unset'],
-                             help='action to perform')
+                             help='%(choices)s')
     env_parser.add_argument('variable', metavar='VAR', type=str, nargs=1,
                              help='variable to modify')
     env_parser.add_argument('value', metavar='VALUE', type=str, nargs='?',
                              help='value to set')
     env_parser.set_defaults(func=env)
+
+    #--- default -----------
+    env_parser = subparsers.add_parser('default', help='override package defaults')
+
+    env_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
+                             help='package name')
+    env_parser.add_argument('version', metavar='VERSION', type=str, nargs='?',
+                             help='version to set. omit to print current version')
+    env_parser.set_defaults(func=set_default)
 
     # monkeypatch with a helper that prints to stderr so we don't eval it
     def __call__(self, parser, namespace, values, option_string=None):
