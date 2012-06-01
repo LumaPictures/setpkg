@@ -89,7 +89,7 @@ def list_packages(args):
 def doit(func, args):
     set_global = platform.system() == 'Windows' and args.set_global
     shell = _get_shell(args.shell, set_global=set_global)
-    logger.debug('setpkg start %s' % (args.packages,))
+    logger.debug('setpkg start')
     try:
         changed, removed = func()
     except PackageError, err:
@@ -113,7 +113,7 @@ def doit(func, args):
 
 def set_packages(args):
     def f():
-        return setpkg(args.packages, force=args.reload, pid=args.pid)
+        return setpkg(args.package[0], force=args.reload, pid=args.pid, pkgflags=args.args)
     doit(f, args)
 
 def unset_packages(args):
@@ -332,14 +332,20 @@ def cli():
                         help='disable color output')
 
     subparsers = parser.add_subparsers(help='actions to perform', dest='subparser')
-    #--- set -----------
-    set_parser = subparsers.add_parser('set', help='add packages')
+    
+    #--------------
+    # set
+    #--------------
+    set_parser = subparsers.add_parser('set', help='add a package')
 
-    set_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='+',
-                       help='packages to add or remove')
+    set_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
+                       help='package to add')
 
     set_parser.add_argument('-f', '--force', '--reload', dest='reload', action='store_true',
                        help='set packages even if already set')
+
+    set_parser.add_argument('args', metavar='ARGS',  nargs=argparse.REMAINDER,
+                            help='set packages even if already set')
 
     if platform.system() == 'Windows':
         set_parser.add_argument('-g', '--global', dest='set_global', action='store_true',
@@ -348,11 +354,13 @@ def cli():
     set_parser.set_defaults(func=set_packages)
     set_parser.formatter_class = PkgHelpFormatter
 
-    #--- unset -----------
+    #--------------
+    # unset
+    #--------------
     unset_parser = subparsers.add_parser('unset', help='remove packages')
 
-    unset_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='*',
-                       help='packages to add or remove')
+    unset_parser.add_argument('packages', metavar='PACKAGES', type=str, nargs='*',
+                       help='packages to remove')
 
     unset_parser.add_argument('--all', '-a', dest='all', action='store_true',
                        help='unset all currently active packages')
@@ -366,11 +374,13 @@ def cli():
 
     unset_parser.set_defaults(func=unset_packages)
 
-    #--- list -----------
+    #--------------
+    # list
+    #--------------
     list_parser = subparsers.add_parser('ls', help='list packages')
 
     list_parser.add_argument('packages', metavar='PACKAGE', type=str, nargs='?',
-                           help='packages to add or remove')
+                           help='packages to list')
 
     list_parser.add_argument('--all', dest='all', action='store_true',
                        help='list all packages')
@@ -386,7 +396,9 @@ def cli():
 
     list_parser.set_defaults(func=list_packages)
 
-    #--- run -----------
+    #--------------
+    # run
+    #--------------
     run_parser = subparsers.add_parser('run', help='run a package')
     run_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
                              help='package to run')
@@ -401,17 +413,23 @@ def cli():
                              help='package to run')
     run_parser.set_defaults(func=run_package)
 
-    #--- info -----------
+    #--------------
+    # info
+    #--------------
     info_parser = subparsers.add_parser('info', help='get information about a package')
     info_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,
                              help='package to query')
     info_parser.set_defaults(func=info)
 
-    #--- aliases -----------
+    #--------------
+    # aliases
+    #--------------
     alias_parser = subparsers.add_parser('system-alias', help='create system aliases for the current shell')
     alias_parser.set_defaults(func=alias)
 
-    #--- env -----------
+    #--------------
+    # env
+    #--------------
     env_parser = subparsers.add_parser('env', help='directly modify environment variables')
 
     env_parser.add_argument('action', metavar='ACTION', type=str, choices=['prepend', 'pop', 'set', 'unset'],
@@ -422,7 +440,9 @@ def cli():
                              help='value to set')
     env_parser.set_defaults(func=env)
 
-    #--- default -----------
+    #--------------
+    # default
+    #--------------
     env_parser = subparsers.add_parser('default', help='override package defaults')
 
     env_parser.add_argument('package', metavar='PACKAGE', type=str, nargs=1,

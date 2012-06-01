@@ -1334,7 +1334,7 @@ class Package(RealPackage):
     # Way to ignore vars like SETPKG_DEPENDENCIES, etc... but still want to
     # know about chagnes to, ie, SETPKG_PATH!
     INTERNAL_VARS_RE = re.compile('^SETPKG_(?:VERSION|DEPENDENTS|DEPENDENCIES)_')
-    def __init__(self, file, version=None, session=None):
+    def __init__(self, file, version=None, args=(), session=None):
         '''
         instantiate a package from a package file.
 
@@ -1350,6 +1350,7 @@ class Package(RealPackage):
         self.file = file
         parent, basename = os.path.split(file)
         self.name = os.path.splitext(basename)[0]
+        self._args = args
         self._version = version
         self._parent = None
         self._dependencies = []
@@ -1601,6 +1602,10 @@ class Package(RealPackage):
 
     def get_dependencies(self):
         return [ PackageInterface(pkg, session=self._session) for pkg in self._read_packagelist('requires')]
+
+    @property
+    def args(self):
+        return self._args
 
 #===============================================================================
 # SessionStorage
@@ -1959,12 +1964,13 @@ class Session(object):
 
         version_parts = package.version_parts
         g['VERSION_PARTS'] = version_parts
+        g['ARGS'] = package.args
 
         g['LOGGER'] = logger
 
         # setpkg command
-        def subpkg(subname):
-            self.add_package(subname, parent=package, depth=depth + 1)
+        def subpkg(subname, *args):
+            self.add_package(subname, parent=package, args=args, depth=depth + 1)
         g['setpkg'] = subpkg
 
         # Considered doing automated detection / adding of all
@@ -2052,7 +2058,7 @@ class Session(object):
 #        for pkg in subpackages:
 #            var.prepend(pkg, expand=False)
 
-    def get_package(self, name):
+    def get_package(self, name, args=()):
         '''
         Find a package on SETPKG_PATH and return a Package class.
 
@@ -2062,12 +2068,12 @@ class Session(object):
             A versioned or unversioned package name
         '''
         shortname, version = _splitname(name)
-        return Package(self.find_package_file(shortname), version, session=self)
+        return Package(self.find_package_file(shortname), version, args=args, session=self)
 
 
-    def add_package(self, name, parent=None, force=False, depth=0):
+    def add_package(self, name, parent=None, force=False, args=(), depth=0):
         try:
-            package = self.get_package(name)
+            package = self.get_package(name, args)
         except PackageError, err:
             logger.error(err)
             return
@@ -2416,70 +2422,63 @@ def _update_environ(session, other=None):
         del other[key]
     return changed, removed
 
-def setpkg(packages, force=False, update_pypath=False, pid=None, environ=None):
+def setpkg(package, force=False, pid=None, environ=None, pkgflags=()):
     '''
     Parameters
     ----------
-    update_pythonpath : bool
-        Set to True if changes to PYTHONPATH should be
-        reflected in sys.path
-        (obselete - ignored - PYTHONPATH changes are always reflected in sys.path)
     force : bool
-        Set to True if package should be re-run (unloaded, then
-        loaded again) if already loaded
+        Set to True if package should be reloaded
+    environ: dict
+        dictionary of environment variables.  Defaults to os.environ
     '''
-    logger.debug('setpkg %s' % ([force, update_pypath, pid, sys.executable]))
-    if isinstance(packages, basestring):
-        packages = [packages]
+    logger.debug('setpkg %s' % ([force, pid, sys.executable]))
+
     if environ is None:
         environ = os.environ
 
     session = Session(pid=pid, environ=dict(environ))
-    for name in packages:
-        session.add_package(name, force=force)
+    session.add_package(package, force=force, args=pkgflags)
 
     return _update_environ(session, other=environ)
 
-def runpkg(packages, args, executable=None, force=False, pid=None, environ=None):
+def runpkg(package, args, executable=None, force=False, pid=None, environ=None):
     '''
     Ensure a package is set, then execute it in a subprocess with optional args
 
     Parameters
     ----------
+    args: iterable
+        List of args to pass to the executable
+    executable: string
+        name of program to run. If None, taken from the package settings
     force : bool
-        Set to True if package should be re-run (unloaded, then
-        loaded again) if already loaded
+        Set to True if package should be reloaded
+    environ: dict
+        dictionary of environment variables.  Defaults to os.environ
     '''
-    logger.debug('runpkg %s' % ([packages, args]))
-    if isinstance(packages, basestring):
-        packages = [packages]
+    logger.debug('runpkg %s' % ([package, args]))
+
     if environ is None:
         environ = os.environ
 
     session = Session(pid=pid, environ=dict(environ))
-    packageClasses = [session.add_package(x, force=force) for x in packages]
+    packageClass = session.add_package(package, force=force)
     _update_environ(session, other=environ)
 
     # if no specific executable is specified, just assume the executable from
     # the first package class in the list.
-    executable = executable if executable else packageClasses[0].executable
+    executable = executable if executable else packageClass.executable
     exeAndArgs = (executable,) + args
     return executableOutput(exeAndArgs)
 
-def unsetpkg(packages, recurse=False, update_pypath=False, pid=None,
-             environ=None):
+def unsetpkg(packages, recurse=False, pid=None, environ=None):
     '''
     Parameters
     ----------
-    update_pythonpath : bool
-        Set to True if changes to PYTHONPATH should be
-        reflected in sys.path
-        (obselete - ignored - PYTHONPATH changes are always reflected in sys.path)
     force : bool
-        Set to True if package should be re-run (unloaded, then
-        loaded again) if already loaded
+        Set to True if package should be reloaded
     '''
-    logger.debug('unsetpkg %s' % ([recurse, update_pypath, pid, sys.executable]))
+    logger.debug('unsetpkg %s' % ([recurse, pid, sys.executable]))
     if isinstance(packages, basestring):
         packages = [packages]
     if environ is None:
