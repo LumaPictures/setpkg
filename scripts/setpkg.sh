@@ -7,7 +7,7 @@
 
 [[ $SETPKG_PATH ]] || export SETPKG_PATH=$SETPKG_ROOT/packages
 
-[[ $PYTHONPATH ]] && export PYTHONPATH=$PYTHONPATH:$SETPKG_ROOT/python || export PYTHONPATH=$SETPKG_ROOT/python
+[[ $PYTHONPATH ]] && export $SETPKG_ROOT/python:PYTHONPATH=$PYTHONPATH || export PYTHONPATH=$SETPKG_ROOT/python
 
 [[ $SETPKG_PYTHONBIN ]] || export SETPKG_PYTHONBIN=$(which python)
 

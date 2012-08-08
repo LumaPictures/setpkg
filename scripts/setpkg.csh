@@ -16,7 +16,7 @@ endif
 if ( ! $?PYTHONPATH ) then
     setenv PYTHONPATH $SETPKG_ROOT/python
 else
-    setenv PYTHONPATH ${PYTHONPATH}:${SETPKG_ROOT}/python
+    setenv PYTHONPATH ${SETPKG_ROOT}/python:${PYTHONPATH}
 endif
 
 if ( ! $?SETPKG_PYTHONBIN ) then
