@@ -85,8 +85,9 @@ Used to set global options
         whether to allow versions which are not explicitly listed in versions
         (see below) but do match the version-regex (if it is provided)
 
-    default-version :
-        the version used when no version is specified
+    default-version[-os] :
+        the version used when no version is specified. the os suffix is optional, and should be
+        all lower case. e.g. default-version-darwin, default-version-linux.
 
 example main section::
 
@@ -578,7 +579,8 @@ class Shell(object):
 
 class Bash(Shell):
     def setenv(self, key, value):
-        return "export %s=%s;" % (key, value)
+        # use %r to get string escaping
+        return "export %s=%r;" % (key, value)
     def unsetenv(self, key):
         return "unset %s;" % (key,)
     def alias(self, key, value):
@@ -588,7 +590,8 @@ class Bash(Shell):
 
 class Tcsh(Shell):
     def setenv(self, key, value):
-        return "setenv %s %s;" % (key, value)
+        # use %r to get string escaping
+        return "setenv %s %r;" % (key, value)
     def unsetenv(self, key):
         return "unsetenv %s;" % (key,)
     def alias(self, key, value):
@@ -1159,6 +1162,18 @@ def _joinname(name, version):
 def _hasversion(package_name):
     return len(package_name.split(PKG_SEP, 1)) == 2
 
+def _strip_args(package_or_version):
+    return package_or_version.split()[0]
+
+def _split_version_args(version):
+    parts = version.split()
+    if len(parts) > 1:
+        version = parts[0]
+        args = tuple(parts[1:])
+    else:
+        args = ()
+    return version, args
+
 def _parse_header(file):
     header = []
     started = False
@@ -1378,10 +1393,17 @@ class Package(RealPackage):
 
     @property
     def fullname(self):
+        '''
+        return the name of the package with version expanded, in the form: name-version
+        '''
         return _joinname(self.name, self.version)
 
     @propertycache
     def version(self):
+        '''
+        return the resolved version, expanding aliases and looking up the default
+        if none was provided
+        '''
         version = self._version
         if not version:
             version = self.default_version
@@ -1400,10 +1422,15 @@ class Package(RealPackage):
                                                                 regexp=True))
                 raise InvalidPackageVersion(self.name, version,
                                             '(valid choices are %s)' % ver_choices)
+        if self.args:
+            version += ' ' + ' '.join(self.args)
         return version
 
     @propertycache
     def default_version(self):
+        '''
+        look up the default version, fist checking environment variables, and then the pykg header
+        '''
         syst = platform.system()
         version = self.environ.get('SETPKG_%s_DEFAULT_VERSION_%s' % (self.name.upper(), syst.upper()))
         if not version:
@@ -1417,6 +1444,9 @@ class Package(RealPackage):
                     version = self.versions[0]
                 else:
                     raise PackageError(self.name, "no 'default-version' specified in package header ([main] section)")
+        version, args = _split_version_args(version)
+        if args:
+            self._args = args
         return version
 
     @propertycache
@@ -1562,7 +1592,7 @@ class Package(RealPackage):
         reg = self.version_regex
         if reg:
             try:
-                return reg.match(self.version).groups()
+                return reg.match(_strip_args(self.version)).groups()
             except AttributeError:
                 logger.warn('could not split version using version-regex %r' % reg)
         return None
@@ -1959,7 +1989,7 @@ class Session(object):
         g['env'] = package._environ_obj
 
         # version
-        g['VERSION'] = package.version
+        g['VERSION'] = _strip_args(package.version)
         g['NAME'] = package.name
 
         version_parts = package.version_parts
@@ -1988,7 +2018,7 @@ class Session(object):
         for n in ('is_pkg_set', 'current_version', 'current_versions',
                   'find_package_file', 'walk_package_files',
                   'list_active_packages', 'list_package_choices',
-                  'list_package_versions', 'currentPackageVersions'):
+                  'list_package_versions', 'current_package_versions'):
             g[n] = getattr(self, n)
 
         # platform utilities
@@ -2398,18 +2428,18 @@ class Session(object):
         return versions
 
     @DefaultSessionMethod
-    def currentPackageVersions(self, packageList):
-        '''Given a packageList, for any package which is versionless and is set
-        in the Session's environment, will replace the unversioned package with
-        the current versioned package.
+    def current_package_versions(self, package_list):
         '''
-        newPackageList = []
-        activePackages = self.current_versions()
-        for package in packageList:
-            if package in activePackages:
-                package = _joinname(package, activePackages[package])
-            newPackageList.append(package)
-        return newPackageList
+        Given a list of package names, returns a new list with 
+        any unversioned packages replaced with the currently set version.
+        '''
+        result = []
+        active_versions = self.current_versions()
+        for package in package_list:
+            if package in active_versions:
+                package = _joinname(package, active_versions[package])
+            result.append(package)
+        return result
 
 
 def _update_environ(session, other=None):
