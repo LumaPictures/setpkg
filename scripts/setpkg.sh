@@ -1,13 +1,13 @@
 
 [[ -z $SETPKG_ROOT ]] && {
     # This will only have any point if it's sourced, so just use $BASH_SOURCE[0]
-	thisfile=$(python -c "import os;print os.path.normcase(os.path.normpath(os.path.realpath(os.path.abspath('''${BASH_SOURCE[0]}'''))))")
-	export SETPKG_ROOT=$(dirname $(dirname $thisfile))
+    thisfile=$(python -c "import os;print os.path.normcase(os.path.normpath(os.path.realpath(os.path.abspath('''${BASH_SOURCE[0]}'''))))")
+    export SETPKG_ROOT=$(dirname $(dirname $thisfile))
 }
 
 [[ $SETPKG_PATH ]] || export SETPKG_PATH=$SETPKG_ROOT/packages
 
-[[ $PYTHONPATH ]] && export $SETPKG_ROOT/python:PYTHONPATH=$PYTHONPATH || export PYTHONPATH=$SETPKG_ROOT/python
+[[ $PYTHONPATH ]] && export PYTHONPATH=$SETPKG_ROOT/python:$PYTHONPATH || export PYTHONPATH=$SETPKG_ROOT/python
 
 [[ $SETPKG_PYTHONBIN ]] || export SETPKG_PYTHONBIN=$(which python)
 
