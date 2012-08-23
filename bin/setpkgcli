@@ -111,7 +111,7 @@ def doit(func, args):
         command(cmd)
         logger.debug(cmd)
 
-def set_packages(args):
+def set_package(args):
     def f():
         return setpkg(args.package[0], force=args.reload, pid=args.pid, pkgflags=args.args)
     doit(f, args)
@@ -128,7 +128,7 @@ def unset_packages(args):
 def run_package(args):
     args.packages = args.package
     args.reload = False
-    set_packages(args)
+    set_package(args)
     # Because we know we won't be modifying anything with this session / package,
     # ok to use os.environ for speed (to avoid copy of environ)
     package = Session(environ=os.environ).get_package(args.package[0])
@@ -345,13 +345,13 @@ def cli():
                        help='set packages even if already set')
 
     set_parser.add_argument('args', metavar='ARGS',  nargs=argparse.REMAINDER,
-                            help='set packages even if already set')
+                            help='additional arguments')
 
     if platform.system() == 'Windows':
         set_parser.add_argument('-g', '--global', dest='set_global', action='store_true',
                            help='set environment for all sessions until system restart')
 
-    set_parser.set_defaults(func=set_packages)
+    set_parser.set_defaults(func=set_package)
     set_parser.formatter_class = PkgHelpFormatter
 
     #--------------
@@ -411,6 +411,8 @@ def cli():
     run_parser.prefix_chars=''
     run_parser.add_argument('runargs', type=str, nargs='*',
                              help='package to run')
+    run_parser.add_argument('args', metavar='ARGS',  nargs=argparse.REMAINDER,
+                            help='additional arguments')
     run_parser.set_defaults(func=run_package)
 
     #--------------
