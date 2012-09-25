@@ -1488,12 +1488,16 @@ class Package(RealPackage):
         list of versions taken from the `versions` config option in the `main` section
         '''
         #versions = [v.strip() for v in self.config.get('main', 'versions').split(',')]
+        versions = []
         try:
-            versions = [k.strip() for k, v in self.config.items('versions')]
+            versions = [k.strip() for k, v in self.config.items('versions-' + platform.system().lower())]
         except NoSectionError:
-            if self.version_from_regex:
-               versions = []
-            else:
+            versions = []
+
+        try:
+            versions = [k.strip() for k, v in self.config.items('versions') if k.strip() not in versions]
+        except NoSectionError:
+            if not self.version_from_regex and not versions:
                 raise PackageError(self.name, 'no [versions] section in package header')
         regexp = self.version_regex
         if not regexp:
