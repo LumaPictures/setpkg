@@ -1,0 +1,81 @@
+'''
+[main]
+version-regex = (\d+)\.(\d+)\.(\d+)\.(\d+)
+default-version = 4
+versions-from-regex = True
+
+[versions]
+3.3.0.0 =
+3.3.1.0 =
+3.3.2.0 =
+3.3.2.2 =
+3.3.3.0 =
+3.3.3.1 =
+3.3.4.0 =
+3.3.4.1 =
+3.3.5.0 =
+3.3.6.0 =
+3.3.6.1 =
+3.3.7.0 =
+3.3.8.0 =
+3.3.9.0 =
+3.3.10.0 =
+3.3.10.1 =
+3.3.11.0 =
+3.3.11.1 =
+3.3.13.0 =
+4.0.0.0 =
+4.0.1.0 =
+4.0.1.1 =
+4.0.1.2 =
+4.0.2.0 =
+4.0.4.0 =
+4.0.5.0 =
+4.0.5.3 =
+4.0.6.0 =
+4.0.7.0 =
+4.0.7.1 =
+
+[aliases]
+3.3.0 = 3.3.0.0
+3.3.1 = 3.3.1.0
+3.3.2 = 3.3.2.2
+3.3.3 = 3.3.3.1
+3.3.4 = 3.3.4.1
+3.3.5 = 3.3.5.0
+3.3.6 = 3.3.6.1
+3.3.7 = 3.3.7.0
+3.3.8 = 3.3.8.0
+3.3.9 = 3.3.9.0
+3.3.10 = 3.3.10.1
+3.3.11 = 3.3.11.1
+3.3.13 = 3.3.13.0
+3 = 3.3.13
+4.0.2 = 4.0.2.0
+4.0.4 = 4.0.4.0
+4.0.5 = 4.0.5.3
+4.0.6 = 4.0.6.0
+4.0.7 = 4.0.7.1
+4.0 = 4.0.6
+4 = 4.0
+
+[requires]
+* = pipe
+'''
+pkgpath, VERSION = packagedir(env, NAME, VERSION)
+
+env.ARNOLD_VERSION = VERSION
+env.ARNOLD_MAJOR_VERSION = VERSION_PARTS[0]
+env.ARNOLD_MINOR_VERSION = VERSION_PARTS[1]
+env.ARNOLD_REVISION_VERSION = VERSION_PARTS[2]
+env.ARNOLD_HOME = '/usr/local/solidAngle/arnold-%s' % VERSION
+env.ARNOLD_LICENSE_HOST = 'sv-lic10'
+env.PATH += '$ARNOLD_HOME/bin'
+env.PYTHONPATH += '$ARNOLD_HOME/python'
+env.ARNOLD_PLUGIN_PATH += pkgpath + '/shaders/published/%s/$OS_ARCH' % '.'.join(VERSION_PARTS[:-1])
+env.MAYA_SCRIPT_PATH += pkgpath + '/shaders/published/scripts'
+
+# we can't set LD_LIBRARY_PATH if we are going to launch maya.
+# unfortunately, setpkg does not support removing an individual
+if not is_pkg_set('maya'):
+    env.LD_LIBRARY_PATH += '$ARNOLD_HOME/bin'

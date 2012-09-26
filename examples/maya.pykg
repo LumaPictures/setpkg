@@ -1,0 +1,198 @@
+'''
+[main]
+# version-regex allows for versions like:
+#   2012.a1, 2012.b1, 2012.rc1, 2012.01
+# ...for alpha/beta/release candidate versions
+version-regex = (\d{4})(?:\.((?:[ab]\d)|(?:rc\d)|(?:\d\d)))?
+#executable-path = $MAYA_LOCATION/bin/maya
+default-version = 2012
+default-version-linux = 2012
+default-version-darwin = 2012
+
+[versions]
+2013.00 =
+2012.17 =
+2012.16 =
+2012.05 =
+2012.04 =
+2012.02 =
+2012.01 =
+2012.00 =
+2012.rc3 =
+2012.rc2 =
+2012.rc1 =
+2012.b1 =
+2011.04 =
+2011.03 =
+2011.02 =
+2011.01 =
+2011.00 =
+2010 =
+2009 =
+2008 =
+
+[aliases]
+2011         = 2011.04
+2011.hotfix1 = 2011.01
+2011.hf1     = 2011.01
+2011.hotfix2 = 2011.02
+2011.hf2     = 2011.02
+2011.hotfix3 = 2011.03
+2011.hf3     = 2011.03
+2011.servicepack1 = 2011.04
+2011.sp1     = 2011.04
+2012         = 2012.17
+2012.hotfix1 = 2012.01
+2012.hf1     = 2012.01
+2012.hotfix2 = 2012.02
+2012.hf2     = 2012.02
+2012.hotfix4 = 2012.04
+2012.hf4     = 2012.04
+2012.adv     = 2012.05
+2012.advsp1  = 2012.17
+2012.sp2     = 2012.17
+2013         = 2013.00
+
+[requires]
+2009* = python-2.5
+2011* = python-2.6
+2012* = python-2.6
+2013* = python-2.6
+
+[subs]
+2011* = mray-3.8.1, fume, shave-5.5v13, mtoa
+2012* = mray-3.9.1, fume, shave-6.0v63, mtoa, miarmy
+2013* = mray-3.9.1, fume, mtoa
+
+[system-aliases]
+2013 =
+2012 =
+2011 =
+2009 =
+2008 =
+'''
+
+pkgpath, VERSION = packagedir(env, NAME, VERSION)
+
+env.MAYA_VERSION_NUM = VERSION_PARTS[0]
+env.MAYA_VERSION_FULL = VERSION
+
+newIconPaths = []
+
+if system() == 'Windows':
+    env.MAYA_VERSION = '$MAYA_VERSION_NUM-x64'
+elif system() == 'Darwin':
+    env.MAYA_VERSION = '$MAYA_VERSION_FULL'
+else:
+    env.MAYA_VERSION = '$MAYA_VERSION_FULL-x64'
+
+newIconPaths.append(pkgpath + '/python/riggTool/thirdParty/icons')
+newIconPaths.append(pkgpath + '/python/riggTool/icons')
+newIconPaths.append('$LUMA_SOFT/maya/icons/thirdParty')
+newIconPaths.append(pkgpath + '/icons')
+
+if env.OS_TYPE == 'Linux':
+    # for now, only set this if version is 2011... in the hopes that future
+    # versions will fix the child window issues
+    if VERSION_PARTS[0] in ('2011', '2012'):
+        # only set a default value - don't set if user has themselves set it
+        # to something else!
+        if not env.MAYA_SET_PARENT_HINT:
+            env.MAYA_SET_PARENT_HINT='0'
+    env.MAYA_LOCATION = '/usr/autodesk/maya$MAYA_VERSION'
+    env.MAYA_INCLUDE = '$MAYA_LOCATION/include'
+    env.WINEDITOR = 'gedit'
+elif env.OS_TYPE == 'Darwin':
+    env.MAYA_LOCATION = '/Applications/Autodesk/maya$MAYA_VERSION/Maya.app/Contents'
+    env.MAYA_INCLUDE = '$MAYA_LOCATION/../../devkit/include'
+    env.WINEDITOR = 'edit'
+else:
+    env.MAYA_LOCATION = 'C:/Autodesk/maya$MAYA_VERSION'
+    env.MAYA_INCLUDE = '$MAYA_LOCATION/include'
+
+env.PATH += '$MAYA_LOCATION/bin'
+env.PATH += pkgpath + '/bin'
+
+if 'ARGS' not in globals() or 'clean' not in ARGS:
+    # current version of fumeLoader is also used as a python module... stick this
+    # in the path at lowest priority to allow this for now
+    env.PYTHONPATH += pkgpath + '/plugins/python'
+
+    env.PYTHONPATH += pkgpath + '/mel'
+    env.PYTHONPATH += pkgpath + '/python/thirdParty'
+    env.PYTHONPATH += pkgpath + '/python'
+    env.PYTHONPATH += pkgpath + '/tests'
+    env.PYTHONPATH += pkgpath + '/python/riggTool/thirdParty/python'
+
+    # shelf format of 2008 doesn't work with current shelves, and causes maya gui
+    # not to load; if you want to use 2008, you'll have to live without shelves
+    if int(VERSION_PARTS[0]) <= 2008:
+        env.MAYA_SHELF_PATH = ''
+    else:
+        # Shelves are always on _globalSoft (i.e. they don't relocate with dev repos)
+        env.MAYA_SHELF_PATH += '$LUMA_SOFT/maya/shelves'
+    env.MAYA_MODULE_PATH += '$LUMA_SOFT/maya/modules/$MAYA_VERSION_NUM/$OS_ARCH'
+    env.MAYA_MODULE_PATH += pkgpath + '/modules/$MAYA_VERSION_NUM/$OS_ARCH'
+    env.MAYA_MODULE_PATH += '$LUMA_SOFT/maya/modules/python'
+    env.MAYA_MODULE_PATH += pkgpath + '/modules/python'
+    env.SETPKG_PATH += '$LUMA_SOFT/maya/modules'
+    env.SETPKG_PATH += pkgpath + '/modules'
+    env.MAYA_PLUG_IN_PATH += pkgpath + '/plugins/$MAYA_VERSION_NUM/$OS_ARCH'
+    env.MAYA_PLUG_IN_PATH += pkgpath + '/plugins/$MAYA_VERSION_NUM/$OS_ARCH_VERSION'
+    env.MAYA_PLUG_IN_PATH += pkgpath + '/plugins/python'
+    env.MAYA_PLUG_IN_PATH += pkgpath + '/python/riggTool/plugins'
+
+    # These presets aren't in the repo...(?) so leave as just LUMA_SOFT for now
+    env.MAYA_PRESET_PATH += '$LUMA_SOFT/maya/presets'
+
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/python/riggTool/thirdParty/mel'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts/AETemplates'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts/FBX'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts/cloth'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts/fur'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts/muscle'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts/others'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts/paintEffects'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts/startup'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts/unsupported'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/autodesk/$MAYA_VERSION_NUM/mel/scripts/live'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/RealflowRenderKit2/AETemplates'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/RealflowRenderKit2/others'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/brainBugz'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/bullet-dynamica'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/displaceD'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/houdiniStuff'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/lipService'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/nimbleTools'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/partio4Maya'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/realflow/AETemplates'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/realflow/others'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/stroika'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/poseDeformer'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/3rdParty/curveBrushTool'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/AETemplates'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/animation'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/fx'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/general'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/model'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/nexus'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/pipeline'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/rendering'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/rendering/preMel'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/rigging/extraTool'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/rigging/cMuscle'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/texture'
+    env.MAYA_SCRIPT_PATH += pkgpath + '/mel/tracking'
+
+    env.MAYA_FBXPRESET_PATH += pkgpath + '/fbxpresets'
+
+    # For draster / NEX
+    env.DRASTER_LIC_SERVER = "sv-lic1"
+
+for iconPath in newIconPaths:
+    if env.OS_TYPE != 'Darwin':
+        iconPath += '/%B'
+    env.XBMLANGPATH += iconPath

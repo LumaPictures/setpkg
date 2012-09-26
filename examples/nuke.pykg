@@ -1,0 +1,67 @@
+'''
+[main]
+executable-path = Nuke
+version-regex = (\d+)\.(\d+)v(\d+)(b\d+)?
+default-version = 6.3
+
+[aliases]
+7.0 = 7.0v1b38
+6.3 = 6.3v8
+6.2 = 6.2v5
+
+[versions]
+7.0v1b38 =
+7.0v1b24 =
+6.3v8 =
+6.3v7 =
+6.3v6 =
+6.3v4 =
+6.3v2 =
+6.2v5 =
+6.2v4 =
+6.2v3 =
+
+[requires]
+7.0* = python-2.6
+6.3* = python-2.6
+6.2* = python-2.6
+6.1* = python-2.5
+6.0* = python-2.5
+5.* = python-2.5
+
+[system-aliases]
+nuke7 = runpkg nuke-7.0
+nuke63 = runpkg nuke-6.3
+nuke62 = runpkg nuke-6.2
+nuke = Nuke
+nukex = Nuke --nukex
+'''
+pkgpath, VERSION = packagedir(env, NAME, VERSION)
+
+env.NUKE_VER = VERSION
+env.NUKE_VERSION_MAJOR = VERSION_PARTS[0]
+env.NUKE_VERSION_MINOR = VERSION_PARTS[1]
+env.NUKE_VERSION_REVISION = VERSION_PARTS[2]
+
+if env.OS_TYPE == 'Linux':
+    env.NUKE_APP = '/usr/local/Nuke$NUKE_VER'
+    env.NDK_PATH = '/usr/local/Nuke$NUKE_VER'
+else:
+    env.NUKE_APP = '/Applications/Nuke${NUKE_VER}/Nuke${NUKE_VER}.app'
+    env.NDK_PATH = '/Applications/Nuke${NUKE_VER}/Nuke${NUKE_VER}.app/Contents/MacOS'
+env.PATH += '$NUKE_APP'
+env.PATH += pkgpath + '/bin'
+env.NUKE_LUMA_PLUGIN_OS_DIR = pkgpath + '/plugins/$NUKE_VERSION_MAJOR.$NUKE_VERSION_MINOR/$OS_TYPE-$ARCH'
+
+# These two have no meaning to Nuke
+env.NUKE_GIZMO_PATH = pkgpath + '/gizmos'
+env.NUKE_PYTHON_PATH += pkgpath + '/python'
+
+env.NUKE_PATH += pkgpath + '/python'
+env.NUKE_PATH += pkgpath + '/plugins/$NUKE_VERSION_MAJOR.$NUKE_VERSION_MINOR/$OS_TYPE-$ARCH'
+env.NUKE_PATH += pkgpath + '/plugins/thirdParty'
+env.NUKE_PATH += '$NUKE_PYTHON_PATH'
+env.NUKE_PATH += '$NUKE_GIZMO_PATH'
+env.NUKE_PATH += pkgpath + '/icons'
+env.PYTHONPATH += '$NUKE_PYTHON_PATH'
+env.OFX_PLUGIN_PATH += '$LUMA_SOFT/nuke/ofx_plugins/$OS_TYPE-$ARCH'

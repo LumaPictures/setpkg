@@ -1,0 +1,22 @@
+'''
+[versions]
+1.0 =
+
+[requires]
+* = python
+
+[subs]
+* = pymel
+
+'''
+env.PYTHONPATH += '$LUMA_SOFT/python/thirdParty'
+env.PYTHONPATH += '$LUMA_SOFT/python/thirdParty/pydevd'
+env.PATH += '$LUMA_SOFT/python/thirdParty/bin'
+
+if env.LUMA_SOFT != env.REPO_PATH:
+    env.PYTHONPATH += '$REPO_PATH/python/thirdParty'
+    env.PYTHONPATH += '$REPO_PATH/python/thirdParty/pydevd'
+    env.PATH += '$REPO_PATH/python/thirdParty/bin'
+
+
+

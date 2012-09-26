@@ -1,0 +1,58 @@
+'''
+[main]
+default-version = 0.17
+version-regex = (\d+)\.(\d+)
+versions-from-regex = True
+
+[versions]
+0.12 =
+0.13 =
+0.14 =
+0.15 =
+0.16 =
+0.17 =
+
+
+[requires]
+# order here is important
+0.12* = maya, arnold-3.3.13
+0.13* = maya, arnold-3.3.13
+0.14* = maya, arnold-3.3.13
+0.15* = maya, arnold-4.0
+0.16* = maya, arnold-4.0.5
+0.17* = maya, arnold-4.0.7
+'''
+
+# if we use os.environ, we will not get changes added by previous packages in
+# this call to setpkg
+if VERSION <= '0.16':
+    # old style
+    mtoabase = '/usr/local/solidAngle'
+    mtoadir = os.path.join(mtoabase, 'mtoa-%s' % VERSION, '$MAYA_VERSION_NUM')
+elif ('ARGS' not in globals() or 'dev' not in ARGS):
+    # new non-dev
+    mtoadir = "$LUMA_SOFT/maya/modules/$MAYA_VERSION_NUM/$OS_ARCH/mtoa-%s" % VERSION
+else:
+    # new dev
+    # osx dev mode is still on the local hard drive due to a bug in SConscript building to 
+    if system() == 'Darwin':
+        mtoabase = '/usr/local/solidAngle'
+        mtoadir = os.path.join(mtoabase, 'mtoa-%s' % VERSION, '$MAYA_VERSION_NUM')
+    else:
+        mtoadir = "$USER_DEV/maya/modules/$MAYA_VERSION_NUM/$OS_ARCH/mtoa-%s" % VERSION
+
+env.MTOA_VERSION = VERSION
+env.MAYA_PRESET_PATH += mtoadir + '/presets'
+env.MAYA_SCRIPT_PATH += mtoadir + '/scripts'
+env.MAYA_PLUG_IN_PATH += mtoadir + '/plug-ins'
+env.MAYA_RENDER_DESC_PATH += mtoadir
+env.ARNOLD_PLUGIN_PATH += mtoadir + '/shaders'
+env.MTOA_EXTENSIONS_PATH += mtoadir + '/extensions'
+env.MTOA_PROCEDURALS_PATH += mtoadir + '/procedurals'
+env.PYTHONPATH += mtoadir + '/scripts'
+#env.LD_LIBRARY_PATH += '/usr/local/solidAngle/arnold-%s/bin' % VERSION
+if system() == 'Darwin':
+    env.DYLD_LIBRARY_PATH += mtoadir + '/bin'
+else:
+    env.LD_LIBRARY_PATH += mtoadir + '/bin'
+
