@@ -1,8 +1,8 @@
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
 setpkg
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
 
-An environment variable management system written in python. The system is based around .pykg files: python
+An environment variable management system written in python. The system is based around ``.pykg`` files: python
 scripts executed in a special environment, containing python ini-style configuration headers. It consists
 of a python API and a command-line utility.
 
@@ -17,56 +17,75 @@ Overview:
 
 Command-line utility:
 
-- supports tcsh, bash, and DOS
+- supports multiple shells: sh/bash, csh/tsch, and windows are supported by default
 - pkg set: used to set the environment in the current shell (great for setting up build environments)
 - pkg info: provides feeback on what packages are set, what environment variables they modify
 - pkg run: sets up an environment then executes an application
 - tab completion of packages
 - sessions are properly inherited in child shells
-- can auto-create system aliases for app launching (e.g. alias maya-2011='pkg run maya-2011')
+- can auto-create system aliases for app launching (e.g. ``alias maya-2011='pkg run maya-2011'``)
 
 Python Module:
 
 - sets os.environ
 - can generate a dictionary for passing to subprocess.Popen
 
-==================================
+==========
 pykg files
-==================================
+==========
 
-Typically, a single .pykg file is written for each application to be managed,
-and placed on the SETPKG_PATH. When adding a package using the setpkg module or
+Typically, a single ``.pykg`` file is written for each application to be managed,
+and placed on the ``SETPKG_PATH``. When adding a package using the setpkg module or
 command line tool, if the requested version of the package is not active, the
-.pykg file is executed. Differences per OS, architecture, application
-version, etc, are handled by code inside the pykg file.
+``.pykg`` file is executed. Differences per OS, architecture, application
+version, etc, are handled by code inside the ``.pykg`` file.
 
-----------------------------------
+--------------------
 Configuration Header
-----------------------------------
-
+--------------------
 
 The configuration header is a specialized module-level python docstring written in
  `ConfigParser <http://http://docs.python.org/library/configparser.html>`_ ini-syntax.
 
-An example for Nuke might look like this::
+An example ``.pykg`` header for Nuke might look like this::
 
     '''
     [main]
     executable-path = Nuke
-    version-regex = (\d+)\.(\d+)v(\d+)
-    default-version = 6.0
-
+    version-regex = (\d+)\.(\d+)v(\d+)(b\d+)?
+    default-version = 6.3
+    
     [aliases]
-    6.0 = 6.0v6
-    5.2 = 5.2v3
-
+    7.0 = 7.0v1b38
+    6.3 = 6.3v8
+    6.2 = 6.2v5
+    
     [versions]
-    6.0v2 =
-    6.0v1 =
-    5.2v3 =
-    5.2v1 =
-    5.1v6 =
-    5.1v4 =
+    7.0v1b38 =
+    7.0v1b24 =
+    6.3v8 =
+    6.3v7 =
+    6.3v6 =
+    6.3v4 =
+    6.3v2 =
+    6.2v5 =
+    6.2v4 =
+    6.2v3 =
+    
+    [requires]
+    7.0* = python-2.6
+    6.3* = python-2.6
+    6.2* = python-2.6
+    6.1* = python-2.5
+    6.0* = python-2.5
+    5.* = python-2.5
+    
+    [system-aliases]
+    nuke7 = runpkg nuke-7.0
+    nuke63 = runpkg nuke-6.3
+    nuke62 = runpkg nuke-6.2
+    nuke = Nuke
+    nukex = Nuke --nukex
     '''
 
 main
@@ -83,12 +102,6 @@ Used to set global options
     default-version :
         the version used when no version is specified
 
-example main section::
-
-    [main]
-    executable-path = Nuke
-    version-regex = (\d+)\.(\d+)v(\d+)
-    default-version = 6.0v6
 
 requires
 ========
@@ -119,7 +132,7 @@ which versions of the current package to associate with the requirement on the
 right side::
 
     [subs]
-    * = djv
+    * = rv
 
 versions
 ========
@@ -141,19 +154,56 @@ aliases
 Alternate names for versions. These are valid to use
 anywhere a version is expected, including as the ``default-version``.
 
-----------------------------------
+------------
 Package Body
-----------------------------------
+------------
 
-The body of the pykg is regular python executed in a specially prepared environment.
+The body of the pykg is regular python executed with specially prepared python globals.
 
-Several variables and functions are added to the globals of pykg script before it
+Continuing from the above Nuke example, the body of a .pykg might look like::
+
+    # pacakgedir is a custom function that finds the root of our package based
+    # env vars and other criteria (see `setpkgutil` below)
+    pkgpath, VERSION = packagedir(env, NAME, VERSION)
+    
+    env.NUKE_VER = VERSION
+    env.NUKE_VERSION_MAJOR = VERSION_PARTS[0]
+    env.NUKE_VERSION_MINOR = VERSION_PARTS[1]
+    env.NUKE_VERSION_REVISION = VERSION_PARTS[2]
+    
+    if env.OS_TYPE == 'Linux':
+        env.NUKE_APP = '/usr/local/Nuke$NUKE_VER'
+        env.NDK_PATH = '/usr/local/Nuke$NUKE_VER'
+    else:
+        env.NUKE_APP = '/Applications/Nuke${NUKE_VER}/Nuke${NUKE_VER}.app'
+        env.NDK_PATH = '/Applications/Nuke${NUKE_VER}/Nuke${NUKE_VER}.app/Contents/MacOS'
+    env.PATH += '$NUKE_APP'
+    env.PATH += pkgpath + '/bin'
+    env.NUKE_LUMA_PLUGIN_OS_DIR = pkgpath + '/plugins/$NUKE_VERSION_MAJOR.$NUKE_VERSION_MINOR/$OS_TYPE-$ARCH'
+    
+    # These two have no true meaning to Nuke, but we use them for organization
+    env.NUKE_GIZMO_PATH = pkgpath + '/gizmos'
+    env.NUKE_PYTHON_PATH += pkgpath + '/python'
+    
+    env.NUKE_PATH += pkgpath + '/python'
+    env.NUKE_PATH += pkgpath + '/plugins/$NUKE_VERSION_MAJOR.$NUKE_VERSION_MINOR/$OS_TYPE-$ARCH'
+    env.NUKE_PATH += pkgpath + '/plugins/thirdParty'
+    env.NUKE_PATH += '$NUKE_PYTHON_PATH'
+    env.NUKE_PATH += '$NUKE_GIZMO_PATH'
+    env.NUKE_PATH += pkgpath + '/icons'
+    env.PYTHONPATH += '$NUKE_PYTHON_PATH'
+    env.OFX_PLUGIN_PATH += '$LUMA_SOFT/nuke/ofx_plugins/$OS_TYPE-$ARCH'
+
+Several variables and functions are added to the globals of the ``.pykg`` script before it
 is executed.
 
     env :
         instance of an Environment class, providing attribute-style access to
         environment variables. This should be used to modify the environment
-        and NOT ``os.environ``.
+        and NOT ``os.environ``.  Attributes of this class represent environment
+        variables, and can be modified via ``prepend()``, ``append()``, ``set()``, 
+        ``unset()``, and ``pop()``.  Additionally, the class supports ``+=`` shorthand
+        for prepending and the ``/`` operator for joining paths.
 
     NAME :
         a string containing the package name; considered everything before the
@@ -183,9 +233,9 @@ is executed.
         the need to explicitly import it. keep in mind that the setpkgutil module
         must be on the ``PYTHONPATH`` before it can be used.
 
-==================================
+=================
 Commandline Tools
-==================================
+=================
 
 The core command is called ``pkg``, which has several sub-commands, notably ``set``,
 ``unset``, ``ls``, ``run``, and ``info`` (call ``pkg -h`` for details)
@@ -252,13 +302,13 @@ runpkg    pkg run
 pkgs      pkg ls
 ========  ===========
 
-==================================
+============
 Installation
-==================================
+============
 
-----------------------------------
+---------------------
 Environment Variables
-----------------------------------
+---------------------
 
 ``SETPKG_ROOT`` :
     Setpkg is comprised of several parts:
@@ -279,6 +329,28 @@ Environment Variables
     between versions of python are known to cause problems. If not set, the full path to the python
     binary found at startup (using ``which python``)  will be stored in this variable.
 
+Setting Variables OSX/Linux
+===========================
+
+Bash
+----
+
+In one of bash's startup scripts (/etc/profile, ~/.bashrc, ~/.bash_profile, etc) add the
+following lines::
+
+    export SETPKG_ROOT=/path/to/setpkg
+    export SETPKG_PATH=/path/to/pykg_dir:/path/to/other/pykg_dir
+    source $SETPKG_ROOT/scripts/setpkg.sh
+
+Tcsh
+----
+
+In one of tcsh's startup scripts (/etc/csh.login, /etc/csh.cshrc, ~/.tcshrc, etc) add the
+following lines::
+
+    setenv SETPKG_ROOT /path/to/setpkg
+    setenv SETPKG_PATH /path/to/pykg_dir:/path/to/other/pykg_dir
+    source $SETPKG_ROOT/scripts/setpkg.csh
 
 Optional Environment Variables
 ==============================
@@ -302,26 +374,4 @@ Optional Environment Variables
         $ pkg set nuke
         adding:     [+]  nuke-6.1v2
 
-----------------------------------
-OSX/Linux
-----------------------------------
 
-Bash
-====
-
-In one of bash's startup scripts (/etc/profile, ~/.bashrc, ~/.bash_profile, etc) add the
-following lines::
-
-    export SETPKG_ROOT=/path/to/setpkg
-    export SETPKG_PATH=/path/to/pykg_dir:/path/to/other/pykg_dir
-    source $SETPKG_ROOT/scripts/setpkg.sh
-
-Tcsh
-====
-
-In one of tcsh's startup scripts (/etc/csh.login, /etc/csh.cshrc, ~/.tcshrc, etc) add the
-following lines::
-
-    setenv SETPKG_ROOT /path/to/setpkg
-    setenv SETPKG_PATH /path/to/pykg_dir:/path/to/other/pykg_dir
-    source $SETPKG_ROOT/scripts/setpkg.csh
